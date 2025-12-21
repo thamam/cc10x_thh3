@@ -1,6 +1,6 @@
 # cc10x_thh3
 
-> **Fork Notice**: This is a fork of [romiluz13/cc10x](https://github.com/romiluz13/cc10x) maintained by @thamam for personal customizations and experiments.
+> **Fork Notice**: This is a fork of [thamam/cc10x_thh3](https://github.com/thamam/cc10x_thh3) maintained by @thamam for personal customizations and experiments.
 
 ---
 
@@ -375,10 +375,10 @@ The silent-failure-hunter agent finds error handling issues with zero tolerance:
 
 ```bash
 # Add marketplace
-/plugin marketplace add romiluz13/cc10x
+/plugin marketplace add thamam/cc10x_thh3
 
 # Install plugin
-/plugin install cc10x@romiluz13
+/plugin install cc10x_thh3@thamam
 
 # Restart Claude Code
 ```
