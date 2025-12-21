@@ -1,3 +1,9 @@
+# cc10x_thh3
+
+> **Fork Notice**: This is a fork of [romiluz13/cc10x](https://github.com/romiluz13/cc10x) maintained by @thamam for personal customizations and experiments.
+
+---
+
 # cc10x - The Perfect Claude Code Workflow System
 
 > **v5.7.1** | 6 Agents | 11 Skills | 1 Router | Memory Persistence | TDD Enforcement
