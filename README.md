@@ -6,7 +6,7 @@
 
 # cc10x - The Perfect Claude Code Workflow System
 
-> **v5.7.1** | 6 Agents | 11 Skills | 1 Router | Memory Persistence | TDD Enforcement
+> **v5.13.1** | 6 Agents | 11 Skills | 1 Router | Memory Persistence | TDD Enforcement | Anthropic Best Practices
 
 **cc10x is what Claude Code should be.** It transforms Claude from a helpful assistant into a disciplined engineering system that never cuts corners.
 
@@ -48,7 +48,7 @@ USER REQUEST
 │  AUTO-EXECUTE on: build, review, debug, plan, fix, etc.     │
 └─────────────────────────────────────────────────────────────┘
      │
-     ├── BUILD intent ──► component-builder ──► code-reviewer ──► silent-failure-hunter ──► integration-verifier
+     ├── BUILD intent ──► component-builder ──► [code-reviewer ∥ silent-failure-hunter] ──► integration-verifier
      │
      ├── REVIEW intent ─► code-reviewer (or silent-failure-hunter for error handling)
      │
@@ -72,7 +72,7 @@ MEMORY (.claude/cc10x/)
 | **bug-investigator** | Fixes bugs | Read, Edit, Write, Bash, Grep, Glob, Skill | LOG FIRST: Evidence before fixes |
 | **code-reviewer** | Reviews code | Read, Write, Bash, Grep, Glob, Skill | Confidence scoring: Only report >= 80% |
 | **integration-verifier** | Verifies E2E | Read, Write, Bash, Grep, Glob, Skill | Evidence-based: Exit codes matter |
-| **planner** | Creates plans | Read, Write, Bash, Grep, Glob, Skill | Saves plans to `.claude/docs/plans/` |
+| **planner** | Creates plans | Read, Write, Bash, Grep, Glob, Skill | Saves plans to `docs/plans/` + updates memory |
 | **silent-failure-hunter** | Audits errors | Read, Write, Bash, Grep, Glob, Skill | Zero tolerance for empty catch blocks |
 
 ### Why These Tools?
@@ -89,19 +89,19 @@ MEMORY (.claude/cc10x/)
 
 Skills are **loaded by agents**, not invoked directly. This prevents Claude from picking skills randomly.
 
-| Skill | Loaded By | Purpose |
-|-------|-----------|---------|
-| **session-memory** | ALL agents | Persist context across compaction |
-| **test-driven-development** | component-builder | RED-GREEN-REFACTOR enforcement |
-| **code-generation** | component-builder | Write minimal code, match patterns |
-| **debugging-patterns** | bug-investigator | LOG FIRST, root cause analysis |
-| **code-review-patterns** | code-reviewer | Two-stage review, security, quality |
-| **planning-patterns** | planner | Comprehensive plans, TDD tasks |
-| **brainstorming** | planner | Explore ideas before implementation |
-| **architecture-patterns** | planner, code-reviewer | System design, API design |
-| **frontend-patterns** | code-reviewer | UX, accessibility, visual design |
-| **verification-before-completion** | ALL agents | Evidence before claims |
-| **cc10x-router** | ENTRY POINT | Routes to correct workflow |
+| Skill | Always Loaded By | Conditionally Loaded By | Purpose |
+|-------|------------------|------------------------|---------|
+| **session-memory** | ALL agents | - | Persist context across compaction |
+| **test-driven-development** | component-builder, bug-investigator | - | RED-GREEN-REFACTOR enforcement |
+| **code-generation** | component-builder | - | Write minimal code, match patterns |
+| **debugging-patterns** | bug-investigator, integration-verifier | - | LOG FIRST, root cause analysis |
+| **code-review-patterns** | code-reviewer, silent-failure-hunter | - | Two-stage review, security, quality |
+| **planning-patterns** | planner | - | Comprehensive plans, TDD tasks |
+| **brainstorming** | - | planner (idea exploration) | Explore ideas before implementation |
+| **architecture-patterns** | planner, integration-verifier | code-reviewer, component-builder, bug-investigator | System design, API design |
+| **frontend-patterns** | - | code-reviewer, component-builder, bug-investigator, integration-verifier, planner | UX, accessibility, visual design |
+| **verification-before-completion** | ALL agents | - | Evidence before claims |
+| **cc10x-router** | ENTRY POINT | - | Routes to correct workflow |
 
 ---
 
@@ -175,7 +175,7 @@ Skills are **loaded by agents**, not invoked directly. This prevents Claude from
 
 ### When You Say "Build a Task Tracker"
 
-**CORRECT (cc10x v5.7.1)**:
+**CORRECT (cc10x v5.10.0)**:
 ```
 Detected BUILD intent. Executing BUILD workflow.
 
@@ -202,7 +202,7 @@ I'll help you build a task tracker! Let me start by creating the files...
 
 ### When You Say "Fix the Login Bug"
 
-**CORRECT (cc10x v5.7.1)**:
+**CORRECT (cc10x v5.10.0)**:
 ```
 Detected DEBUG intent. Executing DEBUG workflow.
 
@@ -228,7 +228,7 @@ It should work now! [no verification]
 
 ### When You Say "Review This PR"
 
-**CORRECT (cc10x v5.7.1)**:
+**CORRECT (cc10x v5.10.0)**:
 ```
 Detected REVIEW intent. Executing REVIEW workflow.
 
@@ -301,6 +301,56 @@ EVERY WORKFLOW MUST:
 ```
 
 **Failure to update memory = incomplete workflow.**
+
+---
+
+## Plan→Build Automation (v5.9.1)
+
+cc10x connects planning to building automatically. No more lost plans.
+
+### Two-Step Save Pattern
+
+When you create a plan:
+1. **Save artifact** → `docs/plans/YYYY-MM-DD-<feature>-plan.md`
+2. **Update memory** → `.claude/cc10x/activeContext.md` references the plan
+
+### Automatic Plan Detection
+
+When component-builder starts, it:
+```bash
+# Extracts plan reference from memory
+PLAN_REF=$(grep -oE 'docs/plans/[^ ]*\.md' .claude/cc10x/activeContext.md)
+
+# If plan exists, shows it
+if [ -f "$PLAN_REF" ]; then
+  cat "$PLAN_REF"
+  echo "=== FOLLOW THESE TASKS IN ORDER ==="
+fi
+```
+
+### Why This Matters
+
+| Without cc10x | With cc10x v5.9.1 |
+|---------------|-------------------|
+| Plan exists only in conversation | Plan saved to file |
+| Compaction loses the plan | Plan survives compaction |
+| Builder doesn't know about plan | Builder auto-loads plan |
+| Manual copy-paste needed | Automatic handoff |
+
+### Example Flow
+
+```
+Day 1: "Plan a task tracker"
+  → Planner creates docs/plans/2025-01-05-task-tracker-plan.md
+  → Memory updated: "Plan ready at docs/plans/..."
+
+Day 2: "Build it"
+  → Router detects BUILD intent
+  → component-builder loads memory
+  → grep finds plan reference
+  → cat shows plan content
+  → Builder follows plan tasks with TDD
+```
 
 ---
 
@@ -430,6 +480,23 @@ The silent-failure-hunter agent finds error handling issues with zero tolerance:
 
 ## Version History
 
+- **v5.13.1** - Bulletproof chain enforcement: Added PARALLEL_COMPLETE+SYNC_NEXT to enforcement rules, explicit 3-step parallel sync, clarified code-reviewer output selection.
+- **v5.13.0** - Parallel agent execution: code-reviewer and silent-failure-hunter now run simultaneously in BUILD workflow (~30-50% faster review phase).
+- **v5.12.1** - Fixed orphan skills: Added brainstorming and frontend-patterns to planner, frontend-patterns to component-builder. All 10 skills now invokable.
+- **v5.12.0** - Pre-publish audit: Trimmed session-memory (512→480 lines), added missing `allowed-tools` to 4 skills, added AskUserQuestion to planning-patterns.
+- **v5.11.0** - Workflow chain enforcement: Agents now signal continuation with WORKFLOW_CONTINUES output format.
+- **v5.10.6** - Foolproof Router & Agents: Added decision tree with explicit precedence (ERROR>PLAN>REVIEW>BUILD), hard gates (MEMORY_LOADED, REQUIREMENTS_CLARIFIED, etc.), explicit skill detection triggers with pattern matching, and handoff templates for agent chains.
+- **v5.10.5** - Complete Permission-Free Audit: Fixed remaining compound commands in brainstorming, planner, and planning-patterns skills. All workflows now use separate tool calls.
+- **v5.10.4** - True Permission-Free Memory: Replaced ALL Bash compound commands (`&&`, `cat`) with separate tool calls (Read tool for loading, simple `mkdir -p` for directory creation). Memory now "breathes" autonomously.
+- **v5.10.3** - Fixed invalid agent color: silent-failure-hunter changed from 'orange' to 'red' (official color)
+- **v5.10.2** - Permission-Free Memory: Replaced ALL heredoc writes with Write tool (no permission needed), added explicit permission-free documentation to session-memory and router
+- **v5.10.1** - Router Supremacy: Expanded router keywords to capture ALL intents (memory, test, frontend, api, etc.), simplified skill/agent descriptions to pure redirects preventing bypass
+- **v5.10.0** - Anthropic Claude 4.x best practices alignment: visual creativity guidance, test generalization, language softening for Opus 4.5, code exploration discipline, reflection steps
+- **v5.9.1** - Plan→Build connection: grep+cat FORCES plan into builder context (100% confidence)
+- **v5.9.0** - Two-step save pattern: Artifact file + memory update, AskUserQuestion usage, UI mockups in brainstorming, observability section
+- **v5.8.1** - Strengthened router bypass prevention - all agents and skills explicitly prevent direct invocation
+- **v5.7.3** - Removed action keywords from agent descriptions (prevents router bypass!)
+- **v5.7.2** - Fixed skill documentation inconsistencies (accurate agent→skill mappings)
 - **v5.7.1** - Added verification-before-completion to silent-failure-hunter
 - **v5.7.0** - Fixed agent keyword conflicts (agents were bypassing router!)
 - **v5.6.0** - Fixed agent tool misconfigurations (planner couldn't save plans!)
@@ -454,4 +521,4 @@ MIT License
 
 ---
 
-_cc10x v5.7.1 | The Perfect Claude Code Workflow System_
+_cc10x v5.13.1 | The Perfect Claude Code Workflow System_

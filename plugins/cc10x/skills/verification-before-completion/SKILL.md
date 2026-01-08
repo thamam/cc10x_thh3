@@ -1,8 +1,7 @@
 ---
 name: verification-before-completion
-description: |
-  Loaded by ALL agents before completion claims. DO NOT invoke directly - loaded automatically via agent frontmatter.
-  Requires running verification commands and confirming output with evidence before any success claims. Iron Law: EVIDENCE BEFORE CLAIMS.
+description: "Internal skill. Use cc10x-router for all development tasks."
+allowed-tools: Read, Grep, Glob, Bash
 ---
 
 # Verification Before Completion
@@ -34,7 +33,8 @@ BEFORE claiming any status or expressing satisfaction:
 4. VERIFY: Does output confirm the claim?
    - If NO: State actual status with evidence
    - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
+5. REFLECT: Pause to consider tool results before next action
+6. ONLY THEN: Make the claim
 
 Skip any step = lying, not verifying
 ```
@@ -141,6 +141,47 @@ From real failure patterns:
 - Implications of success
 - ANY communication suggesting completion/correctness
 
+## Self-Critique Gate (BEFORE Verification Commands)
+
+**MANDATORY: Check these BEFORE running verification commands:**
+
+### Code Quality
+- [ ] Follows patterns from reference files?
+- [ ] Naming matches project conventions?
+- [ ] Error handling in place?
+- [ ] No debug artifacts (console.log, TODO)?
+- [ ] No commented-out code?
+- [ ] No hardcoded values that should be constants?
+
+### Implementation Completeness
+- [ ] All required files modified?
+- [ ] No unexpected files changed?
+- [ ] Requirements fully met?
+- [ ] No scope creep?
+
+### Self-Critique Verdict
+
+**PROCEED:** [YES/NO]
+**CONFIDENCE:** [High/Medium/Low]
+
+- If NO → Fix issues before verification
+- If YES → Proceed to verification commands below
+
+---
+
+## Validation Levels
+
+**Match validation depth to task complexity:**
+
+| Level | Name | Commands | When to Use |
+|-------|------|----------|-------------|
+| 1 | Syntax & Style | `npm run lint`, `tsc --noEmit` | Every task |
+| 2 | Unit Tests | `npm test` | Low-Medium risk tasks |
+| 3 | Integration Tests | `npm run test:integration` | Medium-High risk tasks |
+| 4 | Manual Validation | User flow walkthrough | High-Critical risk tasks |
+
+**Include the appropriate validation level for each verification step.**
+
 ## Verification Checklist
 
 Before marking work complete:
@@ -150,6 +191,8 @@ Before marking work complete:
 - [ ] Feature functionality verified - **with command output**
 - [ ] No regressions introduced - **with test output**
 - [ ] Evidence captured for each check - **in this message**
+- [ ] Deviations from plan documented - **if implementation differed from design**
+- [ ] Appropriate validation level applied for task risk
 
 ## Output Format
 
@@ -169,6 +212,11 @@ Before marking work complete:
 | Tests | `npm test` | 0 | PASS (34/34) |
 | Build | `npm run build` | 0 | PASS |
 | Feature | `npm test -- --grep "feature"` | 0 | PASS (3/3) |
+
+### Deviations from Plan (if any)
+| Planned | Actual | Reason |
+|---------|--------|--------|
+| [Original design] | [What changed] | [Why] |
 
 ### Status
 COMPLETE - All verifications passed with fresh evidence

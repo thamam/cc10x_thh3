@@ -1,8 +1,7 @@
 ---
 name: test-driven-development
-description: |
-  Loaded by component-builder agent. DO NOT invoke directly - use BUILD workflow via cc10x-router.
-  Enforces RED-GREEN-REFACTOR cycle: failing test first, minimal code, clean up. Iron Law: NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.
+description: "Internal skill. Use cc10x-router for all development tasks."
+allowed-tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 
 # Test-Driven Development (TDD)
@@ -150,7 +149,7 @@ async function retryOperation<T>(
 ```
 Over-engineered
 
-Don't add features, refactor other code, or "improve" beyond the test.
+Don't add features, refactor other code, or "improve" beyond the test. Don't hard-code test values - implement general logic that works for ALL inputs.
 
 ### Verify GREEN - Watch It Pass
 
@@ -189,6 +188,40 @@ Next failing test for next feature.
 | **Minimal** | One thing. "and" in name? Split it. | `test('validates email and domain and whitespace')` |
 | **Clear** | Name describes behavior | `test('test1')` |
 | **Shows intent** | Demonstrates desired API | Obscures what code should do |
+
+## Factory Pattern for Tests (Reference Pattern)
+
+Create `getMockX(overrides?: Partial<X>)` functions for reusable test data:
+
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+}
+
+const getMockUser = (overrides?: Partial<User>): User => ({
+  id: '123',
+  name: 'John Doe',
+  email: 'john@example.com',
+  role: 'user',
+  ...overrides,
+});
+
+// Usage - override only what matters for the test
+it('shows admin badge for admin users', () => {
+  const user = getMockUser({ role: 'admin' });
+  render(<UserCard user={user} />);
+  expect(screen.getByText('Admin')).toBeTruthy();
+});
+```
+
+**Benefits:**
+- Sensible defaults - less boilerplate per test
+- Override specific properties - focus on what test cares about
+- Type-safe - catches missing properties
+- DRY - change mock in one place
 
 ## Why Order Matters
 

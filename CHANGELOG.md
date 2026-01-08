@@ -1,5 +1,50 @@
 # Changelog
 
+## [5.11.0] - 2025-01-06
+
+### Fixed
+
+- **Workflow Chain Enforcement**: Fixed critical issue where BUILD workflow stopped after component-builder
+  - Root cause: Agent chains were documented but not enforced - Claude had no signal to continue
+  - Added `WORKFLOW_CONTINUES` and `NEXT_AGENT` output signals to all agents
+  - Added Chain Enforcement section to cc10x-router with explicit continuation rules
+  - All 4 workflows now have complete chain coverage (BUILD, DEBUG, REVIEW, PLAN)
+
+### Changed
+
+- **component-builder**: Now outputs `NEXT_AGENT: code-reviewer` after completion
+- **code-reviewer**: Context-aware - continues chain in BUILD/DEBUG, ends in REVIEW
+- **silent-failure-hunter**: Now outputs `NEXT_AGENT: integration-verifier`
+- **integration-verifier**: Outputs `WORKFLOW_CONTINUES: NO` to signal chain completion
+- **bug-investigator**: Now outputs `NEXT_AGENT: code-reviewer` for DEBUG workflow
+- **planner**: Outputs `WORKFLOW_CONTINUES: NO` (single-agent workflow)
+- **cc10x-router**: Added Chain Enforcement section with explicit loop instructions
+
+### Impact
+
+- BUILD workflow now executes full chain: component-builder → [code-reviewer ∥ silent-failure-hunter] → integration-verifier
+- DEBUG workflow now executes full chain: bug-investigator → code-reviewer → integration-verifier
+- REVIEW and PLAN workflows properly signal completion
+- Claude can no longer "forget" to invoke subsequent agents in the chain
+
+## [5.8.1] - 2025-01-XX
+
+### Fixed
+
+- **Router Bypass Prevention**: Strengthened all agent and skill descriptions to explicitly prevent direct invocation
+  - Added explicit router references to `integration-verifier` and `silent-failure-hunter` agents
+  - Added router workflow context to `session-memory` and `verification-before-completion` skills
+  - Enhanced router description as "THE ONLY ENTRY POINT FOR CC10X" with critical warning
+  - All 17 components (6 agents + 11 skills) now explicitly prevent direct invocation
+  - Production-ready protection against router bypass for millions of users
+
+### Impact
+
+- Zero ambiguity about router being the only entry point
+- Explicit prevention of direct agent/skill invocation
+- Consistent messaging across all components
+- Memory flow integrity guaranteed (router loads memory first, updates last)
+
 ## [5.7.1] - 2025-12-21
 
 ### Fixed

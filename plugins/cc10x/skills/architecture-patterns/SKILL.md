@@ -1,8 +1,6 @@
 ---
 name: architecture-patterns
-description: |
-  Loaded by planner and code-reviewer agents. DO NOT invoke directly - use PLAN/REVIEW workflow via cc10x-router.
-  Provides architecture patterns: system design, API design, integrations, data models. Iron Law: DESIGN ARCHITECTURE FROM FUNCTIONALITY.
+description: "Internal skill. Use cc10x-router for all development tasks."
 allowed-tools: Read, Grep, Glob
 ---
 
@@ -14,7 +12,13 @@ Architecture exists to support functionality. Every architectural decision shoul
 
 **Core principle:** Design architecture FROM functionality, not TO functionality.
 
-**Violating the letter of this process is violating the spirit of architecture.**
+## Focus Areas (Reference Pattern)
+
+- **RESTful API design** with proper versioning and error handling
+- **Service boundary definition** and inter-service communication
+- **Database schema design** (normalization, indexes, sharding)
+- **Caching strategies** and performance optimization
+- **Basic security patterns** (auth, rate limiting)
 
 ## The Iron Law
 
@@ -46,6 +50,7 @@ If you haven't documented user flows, admin flows, and system flows, you cannot 
 4. **What are the system flows?** - Internal processing steps
 5. **What integrations exist?** - External dependencies
 6. **What are the constraints?** - Performance, security, compliance
+7. **What observability is needed?** - Logging, metrics, monitoring, alerting
 
 ## Functionality-First Design Process
 
@@ -180,6 +185,23 @@ Admin Flow: Delete file
 **Fallback**: What's the degraded experience?
 ```
 
+## Observability Design
+
+**For each component, define:**
+
+| Aspect | Questions |
+|--------|-----------|
+| **Logging** | What events? What level? Structured format? |
+| **Metrics** | What to measure? Counters, gauges, histograms? |
+| **Alerts** | What thresholds? Who gets notified? |
+| **Tracing** | Span boundaries? Correlation IDs? |
+
+**Minimum observability:**
+- Request/response logging at boundaries
+- Error rates and latencies
+- Health check endpoint
+- Correlation ID propagation
+
 ## Decision Framework
 
 **For each architectural decision:**
@@ -218,6 +240,26 @@ If you find yourself:
 - Making decisions without documenting trade-offs
 
 **STOP. Go back to functionality flows.**
+
+## Keep It Simple (Reference Pattern)
+
+**Approach for backend architecture:**
+
+1. Start with clear service boundaries
+2. Design APIs contract-first
+3. Consider data consistency requirements
+4. Plan for horizontal scaling from day one
+5. **Keep it simple - avoid premature optimization**
+
+**Architecture Output Checklist:**
+
+- [ ] API endpoint definitions with example requests/responses
+- [ ] Service architecture diagram (mermaid or ASCII)
+- [ ] Database schema with key relationships
+- [ ] Technology recommendations with brief rationale
+- [ ] Potential bottlenecks and scaling considerations
+
+**Always provide concrete examples. Focus on practical implementation over theory.**
 
 ## Rationalization Prevention
 

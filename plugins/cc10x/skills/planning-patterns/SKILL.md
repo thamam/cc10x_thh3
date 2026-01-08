@@ -1,9 +1,7 @@
 ---
 name: planning-patterns
-description: |
-  Loaded by planner agent. DO NOT invoke directly - use PLAN workflow via cc10x-router.
-  Provides planning patterns: comprehensive plans with bite-sized TDD tasks, spec-based, DRY/YAGNI. Iron Law: NO VAGUE STEPS - EVERY STEP IS SPECIFIC.
-allowed-tools: Read, Grep, Glob
+description: "Internal skill. Use cc10x-router for all development tasks."
+allowed-tools: Read, Grep, Glob, AskUserQuestion
 ---
 
 # Writing Plans
@@ -48,6 +46,7 @@ NO VAGUE STEPS - EVERY STEP IS A SPECIFIC ACTION
 # [Feature Name] Implementation Plan
 
 > **For Claude:** REQUIRED: Follow this plan task-by-task using TDD.
+> **Design:** See `docs/plans/YYYY-MM-DD-<feature>-design.md` for full specification.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -59,6 +58,8 @@ NO VAGUE STEPS - EVERY STEP IS A SPECIFIC ACTION
 
 ---
 ```
+
+**Note:** If a design document exists, always reference it in the header.
 
 ## Task Structure
 
@@ -105,6 +106,47 @@ git commit -m "feat: add specific feature"
 ```
 ```
 
+## Context is King (Cole Medin Principle)
+
+**The plan must contain ALL information for a single-pass implementation.**
+
+A developer with zero codebase context should be able to execute the plan WITHOUT asking any questions.
+
+### Context References Section (MUST READ!)
+
+**Every plan MUST include a Context References section:**
+
+```markdown
+## Relevant Codebase Files
+
+### Patterns to Follow
+- `src/components/Button.tsx` (lines 15-45) - Component structure pattern
+- `src/services/api.ts` (lines 23-67) - API service pattern
+
+### Configuration Files
+- `tsconfig.json` - TypeScript settings
+- `.env.example` - Environment variables needed
+
+### Related Documentation
+- `docs/architecture.md#authentication` - Auth flow overview
+- `README.md#running-tests` - Test commands
+```
+
+**Why:** Claude forgets context. External docs get stale. File:line references are always accurate.
+
+## Validation Levels
+
+**Match validation depth to plan complexity:**
+
+| Level | Name | Commands | When |
+|-------|------|----------|------|
+| 1 | Syntax & Style | `npm run lint`, `tsc --noEmit` | Every task |
+| 2 | Unit Tests | `npm test` | Low-Medium risk |
+| 3 | Integration Tests | `npm run test:integration` | Medium-High risk |
+| 4 | Manual Validation | User flow walkthrough | High-Critical risk |
+
+**Include specific validation commands in each task step.**
+
 ## Requirements Checklist
 
 Before writing a plan:
@@ -116,6 +158,7 @@ Before writing a plan:
 - [ ] Constraints documented
 - [ ] Success criteria defined
 - [ ] Existing code patterns understood
+- [ ] Context References section prepared with file:line references
 
 ## Risk Assessment Table
 
@@ -128,6 +171,26 @@ For each identified risk:
 | Auth bypass | 2 | 5 | 10 | Security review |
 
 Score = Probability × Impact. Address risks with score > 8 first.
+
+## Risk-Based Testing Matrix
+
+**Match testing depth to task risk:**
+
+| Task Risk | Example | Tests Required |
+|-----------|---------|----------------|
+| Trivial | Typo fix, docs update | None |
+| Low | Single file change, utility function | Unit tests only |
+| Medium | Multi-file feature, new component | Unit + Integration tests |
+| High | Cross-service, auth, state management | Unit + Integration + E2E tests |
+| Critical | Payments, security, data migrations | All tests + Security audit |
+
+**How to assess risk:**
+- How many files touched? (1 = low, 3+ = medium, cross-service = high)
+- Is it auth/payments/security? (always high or critical)
+- Is it user-facing? (medium minimum)
+- Can it cause data loss? (high or critical)
+
+**Use this matrix when planning test steps. Don't over-test trivial changes. Don't under-test critical ones.**
 
 ## Functionality Flow Mapping
 
@@ -252,11 +315,81 @@ git commit -m "feat: [description]"
 - [ ] Code reviewed
 ```
 
+## Save the Plan (MANDATORY)
+
+**Two saves are required - plan file AND memory update:**
+
+### Step 1: Save Plan File (Use Write tool - NO PERMISSION NEEDED)
+
+```
+# First create directory
+Bash(command="mkdir -p docs/plans")
+
+# Then save plan using Write tool (permission-free)
+Write(file_path="docs/plans/YYYY-MM-DD-<feature>-plan.md", content="[full plan content from output format above]")
+
+# Then commit (separate commands to avoid permission prompt)
+Bash(command="git add docs/plans/*.md")
+Bash(command="git commit -m 'docs: add <feature> implementation plan'")
+```
+
+### Step 2: Update Memory (CRITICAL - Links Plan to Memory)
+
+**Use Edit tool (NO permission prompt):**
+
+```
+# First read existing content
+Read(file_path=".claude/cc10x/activeContext.md")
+
+# Then use Edit to replace (matches first line, replaces entire content)
+Edit(file_path=".claude/cc10x/activeContext.md",
+     old_string="# Active Context",
+     new_string="# Active Context
+
+## Current Focus
+Plan created for [feature]. Ready for execution.
+
+## Recent Changes
+- Plan saved to docs/plans/YYYY-MM-DD-<feature>-plan.md
+
+## Next Steps
+1. Execute plan at docs/plans/YYYY-MM-DD-<feature>-plan.md
+2. Follow TDD cycle for each task
+3. Update progress.md after each task
+
+## Active Decisions
+| Decision | Choice | Why |
+|----------|--------|-----|
+| [Key decisions from plan] | [Choice] | [Reason] |
+
+## Plan Reference
+**Execute:** `docs/plans/YYYY-MM-DD-<feature>-plan.md`
+
+## Last Updated
+[current date/time]")
+```
+
+**Also append to progress.md using Edit:**
+```
+Read(file_path=".claude/cc10x/progress.md")
+
+Edit(file_path=".claude/cc10x/progress.md",
+     old_string="[last section heading]",
+     new_string="[last section heading]
+
+## Plan Created
+- [x] Plan saved - docs/plans/YYYY-MM-DD-<feature>-plan.md")
+```
+
+**WHY BOTH:** Plan files are artifacts. Memory is the index. Without memory update, next session won't know the plan exists.
+
+**This is non-negotiable.** Memory is the single source of truth.
+
 ## Execution Handoff
 
 After saving the plan, offer execution choice:
 
-**"Plan complete. Two execution options:**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
 
 **1. Subagent-Driven (this session)** - Fresh subagent per task, review between tasks, fast iteration
 

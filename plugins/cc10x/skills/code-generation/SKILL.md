@@ -1,8 +1,7 @@
 ---
 name: code-generation
-description: |
-  Loaded by component-builder agent. DO NOT invoke directly - use BUILD workflow via cc10x-router.
-  Provides code writing patterns: understand functionality first, write minimal code, match project patterns. Iron Law: NO CODE BEFORE UNDERSTANDING FUNCTIONALITY.
+description: "Internal skill. Use cc10x-router for all development tasks."
+allowed-tools: Read, Grep, Glob, Write, Edit
 ---
 
 # Code Generation
@@ -42,6 +41,7 @@ When generating code, you are:
 4. **What are the outputs?** - What should be returned? What side effects?
 5. **What are the edge cases?** - What can go wrong? What's the error handling?
 6. **What patterns exist?** - How does the codebase do similar things?
+7. **Have you read the files?** - Never propose changes to code you haven't opened and read.
 
 ## Context-Dependent Flows
 
@@ -96,7 +96,7 @@ cat src/path/to/similar/file.ts
 
 ### 2. Write Minimal Implementation
 
-Follow **YAGNI** (You Ain't Gonna Need It):
+Follow **YAGNI** (You Ain't Gonna Need It). Prefer editing existing files over creating new ones.
 
 **Good:**
 ```typescript
