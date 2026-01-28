@@ -69,16 +69,31 @@ TaskList()  # Check for pending/in-progress workflow tasks
 
 ### BUILD Workflow Tasks
 ```
+# 0. Check if following a plan (from activeContext.md)
+# If activeContext contains "Plan Reference:" or "Execute:" with plan path:
+#   → Extract plan_file path (e.g., docs/plans/2024-01-27-auth-plan.md)
+#   → Include in task metadata for context preservation
+
 # 1. Parent workflow task
 TaskCreate({
   subject: "BUILD: {feature_summary}",
-  description: "User request: {request}\n\nWorkflow: BUILD\nChain: component-builder → [code-reviewer ∥ silent-failure-hunter] → integration-verifier",
-  activeForm: "Building {feature}"
+  description: "User request: {request}\n\nWorkflow: BUILD\nChain: component-builder → [code-reviewer ∥ silent-failure-hunter] → integration-verifier\n\n**Plan:** {plan_file or 'N/A'}",
+  activeForm: "Building {feature}",
+  metadata: {
+    workflow: "BUILD",
+    feature: "{feature}",
+    planFile: "{plan_file or null}"  # Links task to plan for context recovery
+  }
 })
 # Returns workflow_task_id
 
 # 2. Agent tasks with dependencies
-TaskCreate({ subject: "component-builder: Implement {feature}", description: "Build the feature per user request", activeForm: "Building components" })
+TaskCreate({
+  subject: "component-builder: Implement {feature}",
+  description: "Build the feature per user request\n\n**Plan:** {plan_file or 'N/A'}",
+  activeForm: "Building components",
+  metadata: { agent: "component-builder", planFile: "{plan_file or null}" }
+})
 # Returns builder_task_id
 
 TaskCreate({ subject: "code-reviewer: Review implementation", description: "Review code quality, patterns, security", activeForm: "Reviewing code" })
@@ -131,8 +146,10 @@ TaskCreate({ subject: "planner: Create plan for {feature}", description: "Create
 3. **If github-research detected (external service error OR explicit request):**
    - Execute research FIRST using octocode tools directly
    - Search for error patterns, PRs with similar issues
+   - **PERSIST research** → Save to `docs/research/YYYY-MM-DD-<error-topic>-research.md`
+   - **Update memory** → Add to activeContext.md Research References table
 4. **Create task hierarchy** (see Task-Based Orchestration above)
-5. **Start chain execution** (see Chain Execution Loop below)
+5. **Start chain execution** (pass research file path if step 3 was executed)
 6. Update memory → Add to Common Gotchas when all tasks completed
 
 ### REVIEW
@@ -146,18 +163,25 @@ TaskCreate({ subject: "planner: Create plan for {feature}", description: "Create
 2. **If github-research detected (external tech OR explicit request):**
    - Execute research FIRST using octocode tools directly (NOT as hint)
    - Use: `mcp__octocode__packageSearch`, `mcp__octocode__githubSearchCode`, etc.
+   - **PERSIST research** → Save to `docs/research/YYYY-MM-DD-<topic>-research.md`
+   - **Update memory** → Add to activeContext.md Research References table
    - Summarize findings before invoking planner
 3. **Create task hierarchy** (see Task-Based Orchestration above)
-4. **Start chain execution** (pass research results in prompt if step 2 was executed)
+4. **Start chain execution** (pass research results + file path in prompt if step 2 was executed)
 5. Update memory → Reference saved plan when task completed
 
-**TWO-PHASE for External Research (MANDATORY):**
+**THREE-PHASE for External Research (MANDATORY):**
 ```
 If SKILL_HINTS includes github-research:
-  → FIRST: Execute research using octocode tools
-  → THEN: Task(cc10x:planner, prompt="...Research findings: {results}...")
+  → PHASE 1: Execute research using octocode tools
+  → PHASE 2: PERSIST research (prevents context loss):
+      Bash(command="mkdir -p docs/research")
+      Write(file_path="docs/research/YYYY-MM-DD-<topic>-research.md", content="[research summary]")
+      Edit(file_path=".claude/cc10x/activeContext.md", ...)  # Add to Research References
+  → PHASE 3: Task(cc10x:planner, prompt="...Research findings: {results}...\nResearch saved to: docs/research/YYYY-MM-DD-<topic>-research.md")
 ```
 Research is a PREREQUISITE, not a hint. Planner cannot skip it.
+**Research without persistence is LOST after context compaction.**
 
 ## Agent Invocation
 
@@ -194,10 +218,11 @@ SKILL_HINTS: {detected skills from table below - agent MUST load these}
 1. **MEMORY_LOADED** - Before routing
 2. **TASKS_CHECKED** - Check TaskList() for active workflow
 3. **RESEARCH_EXECUTED** - Before planner (if github-research detected)
-4. **REQUIREMENTS_CLARIFIED** - Before invoking agent (BUILD only)
-5. **TASKS_CREATED** - Workflow task hierarchy created
-6. **ALL_TASKS_COMPLETED** - All agent tasks status="completed"
-7. **MEMORY_UPDATED** - Before marking done
+4. **RESEARCH_PERSISTED** - Save to docs/research/ + update activeContext.md (if research was executed)
+5. **REQUIREMENTS_CLARIFIED** - Before invoking agent (BUILD only)
+6. **TASKS_CREATED** - Workflow task hierarchy created
+7. **ALL_TASKS_COMPLETED** - All agent tasks status="completed"
+8. **MEMORY_UPDATED** - Before marking done
 
 ## Chain Execution Loop (Task-Based)
 
