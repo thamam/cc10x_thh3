@@ -1,7 +1,7 @@
 ---
 name: code-review-patterns
 description: "Internal skill. Use cc10x-router for all development tasks."
-allowed-tools: Read, Grep, Glob
+allowed-tools: Read, Grep, Glob, LSP
 ---
 
 # Code Review Patterns
@@ -11,6 +11,16 @@ allowed-tools: Read, Grep, Glob
 Code reviews catch bugs before they ship. But reviewing code quality before functionality is backwards.
 
 **Core principle:** First verify it works, THEN verify it's good.
+
+## Signal Quality Rule
+
+**Flag ONLY when certain. False positives erode trust and waste remediation cycles.**
+
+| Flag | Do NOT Flag |
+|------|-------------|
+| Will fail to compile/parse (syntax, type, import errors) | Style preferences not in project guidelines |
+| Logic error producing wrong results for all inputs | Potential issues dependent on specific inputs/state |
+| Clear guideline violation (quote the exact rule) | Subjective improvements or nitpicks |
 
 ## Quick Review Checklist (Reference Pattern)
 
@@ -71,6 +81,8 @@ Review in priority order:
 
 ## Security Review Checklist
 
+**Reference:** [OWASP Top 10](https://owasp.org/www-project-top-ten/) - Check against industry standard vulnerabilities.
+
 | Check | Looking For | Example Vulnerability |
 |-------|-------------|----------------------|
 | Input validation | Unvalidated user input | SQL injection, XSS |
@@ -81,6 +93,67 @@ Review in priority order:
 | Output encoding | Unescaped output | XSS attacks |
 | CSRF | Missing tokens | Cross-site request forgery |
 | File handling | Path traversal | Reading arbitrary files |
+
+### Security Quick-Scan Commands
+
+**Run before any review:**
+```bash
+# Check for hardcoded secrets
+grep -rE "(api[_-]?key|password|secret|token)\s*[:=]" --include="*.ts" --include="*.js" src/
+
+# Check for SQL injection risk
+grep -rE "(query|exec)\s*\(" --include="*.ts" src/ | grep -v "parameterized"
+
+# Check for dangerous patterns
+grep -rE "(eval\(|innerHTML\s*=|dangerouslySetInnerHTML)" --include="*.ts" --include="*.tsx" src/
+
+# Check for console.log (remove before production)
+grep -rn "console\.log" --include="*.ts" --include="*.tsx" src/
+```
+
+## LSP-Powered Code Analysis
+
+**Use LSP for semantic understanding during reviews:**
+
+| Task | LSP Tool | Why Better Than Grep |
+|------|----------|---------------------|
+| Find all callers of a function | `lspCallHierarchy(incoming)` | Finds actual calls, not string matches |
+| Find all usages of a type/variable | `lspFindReferences` | Semantic, not text-based |
+| Navigate to definition | `lspGotoDefinition` | Jumps to actual definition |
+| Understand what function calls | `lspCallHierarchy(outgoing)` | Maps call chain |
+
+**Review Workflow with LSP:**
+1. `localSearchCode` → find symbol + get lineHint
+2. `lspGotoDefinition(lineHint=N)` → understand implementation
+3. `lspFindReferences(lineHint=N)` → check all usages for consistency
+4. `lspCallHierarchy(incoming)` → verify callers handle changes
+
+**CRITICAL:** Always get lineHint from localSearchCode first. Never guess line numbers.
+
+**Critical Security Patterns:**
+
+| Pattern | Risk | Detection | Fix |
+|---------|------|-----------|-----|
+| Hardcoded secret | API key exposure | `grep -r "sk-" src/` | Use env var |
+| SQL concatenation | SQL injection | `query(\`SELECT...${id}\`)` | Parameterized query |
+| `innerHTML = userInput` | XSS | grep for innerHTML | Use textContent |
+| `eval(userInput)` | Code injection | grep for eval | Never eval user input |
+| Missing auth check | Unauthorized access | Review API routes | Add middleware |
+| CORS `*` | Cross-origin attacks | Check CORS config | Whitelist origins |
+
+**OWASP Top 10 Quick Reference:**
+1. Injection (SQL, Command, XSS)
+2. Broken Authentication
+3. Sensitive Data Exposure
+4. XXE (XML External Entities)
+5. Broken Access Control
+6. Security Misconfiguration
+7. Cross-Site Scripting (XSS)
+8. Insecure Deserialization
+9. Using Vulnerable Components
+10. Insufficient Logging
+
+**Full security review:** See [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 
 **For each security issue found:**
 ```markdown
@@ -100,6 +173,47 @@ Review in priority order:
 | **Duplication** | DRY where sensible | Copy-paste code |
 | **Error handling** | Graceful failures | Silent failures |
 | **Testability** | Injectable dependencies | Global state |
+
+## Type Design Red Flags (Typed Languages)
+
+| Anti-Pattern | Problem | Fix |
+|--------------|---------|-----|
+| Exposed mutable internals | External code breaks invariants | Return copies or readonly |
+| No constructor validation | Invalid instances created | Validate at construction |
+| Invariants in docs only | Not enforced, easily broken | Encode in type system |
+| Anemic domain model | Data without behavior | Add methods enforcing rules |
+
+## Hidden Failure Patterns
+
+| Pattern | Why It Hides Failures |
+|---------|----------------------|
+| `?.` chains without logging | Silently skips failed operations |
+| `?? defaultValue` masking | Hides null/undefined source errors |
+| Catch-log-continue | User never sees the failure |
+| Retry exhaustion without notice | Fails silently after N attempts |
+| Fallback chains without explanation | Masks root cause with alternatives |
+
+## Clarity Over Brevity
+
+- Nested ternary `a ? b ? c : d : e` → Use if/else or switch
+- Dense one-liner saving 2 lines → 3 clear lines over 1 clever line
+- Chained `.map().filter().reduce()` with complex callbacks → Named intermediates
+
+## Pattern Recognition Criteria
+
+**During reviews, identify patterns worth documenting:**
+
+| Criteria | What to Look For | Example |
+|----------|------------------|---------|
+| **Tribal** | Knowledge new devs wouldn't know | "All API responses use envelope structure" |
+| **Opinionated** | Specific choices that could differ | "We use snake_case for DB, camelCase for JS" |
+| **Unusual** | Not standard framework patterns | "Custom retry logic with backoff" |
+| **Consistent** | Repeated across multiple files | "All services have health check endpoint" |
+
+**If you spot these during review:**
+1. Note the pattern in review feedback
+2. Include in your **Memory Notes (Patterns section)** - router will persist to patterns.md via Memory Update task
+3. Flag inconsistencies from established patterns
 
 ## Performance Review Checklist
 
@@ -141,6 +255,36 @@ Review in priority order:
 | **MAJOR** | Affects functionality or significant quality issue | Should fix before merge |
 | **MINOR** | Style issues, small improvements | Can merge, fix later |
 | **NIT** | Purely stylistic preferences | Optional |
+
+## Multi-Signal Review Methodology
+
+**Each Stage 2 pass produces an independent signal. Score each dimension separately.**
+
+**HARD signals** (any failure blocks approval):
+- **Security:** One real vulnerability = dimension score 0
+- **Correctness:** One logic error producing wrong output = dimension score 0
+
+**SOFT signals** (concerns noted, don't block alone):
+- **Performance:** Scaling concern without immediate impact
+- **Maintainability:** Complex but functional code
+- **UX/A11y:** Missing states but core flow works
+
+**Aggregation rule:**
+1. If ANY HARD signal = 0 → STATUS: CHANGES_REQUESTED (non-negotiable)
+2. CONFIDENCE = min(HARD scores), reduced by max 10 if SOFT signals are low
+3. Include per-signal breakdown in Router Handoff for targeted remediation
+
+**Evidence requirement per signal:**
+Each signal MUST cite specific file:line. A signal without evidence = not reported.
+
+## Do NOT Flag (False Positive Prevention)
+
+- Pre-existing issues not introduced by this change
+- Correct code that merely looks suspicious
+- Pedantic nitpicks a senior engineer would not flag
+- Issues linters already catch (don't duplicate tooling)
+- General quality concerns not required by project guidelines
+- Issues explicitly silenced via lint-ignore comments
 
 ## Priority Output Format (Feedback Grouping)
 

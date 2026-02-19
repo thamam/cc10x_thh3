@@ -302,45 +302,37 @@ Bash(command="mkdir -p docs/plans")
 # Then save design using Write tool (permission-free)
 Write(file_path="docs/plans/YYYY-MM-DD-<feature>-design.md", content="[full design content from template above]")
 
-# Then commit (separate commands to avoid permission prompt)
-Bash(command="git add docs/plans/*.md")
-Bash(command="git commit -m 'docs: add <feature> design'")
+# Do NOT auto-commit — let the user decide when to commit
 ```
 
 ### Step 2: Update Memory (CRITICAL - Links Design to Memory)
 
-**Use Edit tool (NO permission prompt):**
+**Use Read-Edit-Verify with stable anchors:**
 
 ```
-# First read existing content
+# Step 1: READ
 Read(file_path=".claude/cc10x/activeContext.md")
 
-# Then use Edit to replace (matches first line, replaces entire content)
+# Step 2: VERIFY anchors exist (## References, ## Recent Changes, ## Next Steps)
+
+# Step 3: EDIT using stable anchors
+# Add design to References
 Edit(file_path=".claude/cc10x/activeContext.md",
-     old_string="# Active Context",
-     new_string="# Active Context
+     old_string="## References",
+     new_string="## References\n- Design: `docs/plans/YYYY-MM-DD-<feature>-design.md`")
 
-## Current Focus
-Design created for [feature]. Ready for planning or building.
+# Index the design creation in Recent Changes
+Edit(file_path=".claude/cc10x/activeContext.md",
+     old_string="## Recent Changes",
+     new_string="## Recent Changes\n- Design saved: docs/plans/YYYY-MM-DD-<feature>-design.md")
 
-## Recent Changes
-- Design saved to docs/plans/YYYY-MM-DD-<feature>-design.md
+# Make the next step explicit
+Edit(file_path=".claude/cc10x/activeContext.md",
+     old_string="## Next Steps",
+     new_string="## Next Steps\n1. Decide: plan vs build (design at docs/plans/YYYY-MM-DD-<feature>-design.md)")
 
-## Next Steps
-1. Create implementation plan (if complex)
-2. Or start building directly (if simple)
-3. Reference design at docs/plans/YYYY-MM-DD-<feature>-design.md
-
-## Active Decisions
-| Decision | Choice | Why |
-|----------|--------|-----|
-| [Key decisions from design] | [Choice] | [Reason] |
-
-## Design Reference
-**Design:** `docs/plans/YYYY-MM-DD-<feature>-design.md`
-
-## Last Updated
-[current date/time]")
+# Step 4: VERIFY (do not skip)
+Read(file_path=".claude/cc10x/activeContext.md")
 ```
 
 **WHY BOTH:** Design files are artifacts. Memory is the index. Without memory update, next session won't know the design exists.

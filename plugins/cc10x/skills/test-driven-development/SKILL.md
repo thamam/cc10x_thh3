@@ -45,6 +45,20 @@ Write code before the test? Delete it. Start over.
 
 Implement fresh from tests. Period.
 
+## Test Process Discipline (CRITICAL)
+
+**Problem:** Test runners (Vitest, Jest) default to watch mode, leaving processes hanging indefinitely.
+
+**Mandatory Rules:**
+1. **Always use run mode** — Never invoke watch mode:
+   - Vitest: `npx vitest run` (NOT `npx vitest`)
+   - Jest: `CI=true npx jest` or `npx jest --watchAll=false`
+   - npm scripts: `CI=true npm test` or `npm test -- --run`
+2. **Prefer CI=true prefix** for all test commands: `CI=true npm test`
+3. **After TDD cycle complete**, verify no orphaned processes:
+   `pgrep -f "vitest|jest" || echo "Clean"`
+4. **Kill if found**: `pkill -f "vitest" 2>/dev/null || true`
+
 ## Red-Green-Refactor
 
 ```
@@ -103,7 +117,7 @@ Vague name, tests mock not code
 **MANDATORY. Never skip.**
 
 ```bash
-npm test path/to/test.test.ts
+CI=true npm test path/to/test.test.ts
 ```
 
 Confirm:
@@ -156,7 +170,7 @@ Don't add features, refactor other code, or "improve" beyond the test. Don't har
 **MANDATORY.**
 
 ```bash
-npm test path/to/test.test.ts
+CI=true npm test path/to/test.test.ts
 ```
 
 Confirm:
@@ -222,6 +236,63 @@ it('shows admin badge for admin users', () => {
 - Override specific properties - focus on what test cares about
 - Type-safe - catches missing properties
 - DRY - change mock in one place
+
+## Mocking External Dependencies (When Unavoidable)
+
+**Rule:** Prefer real code. Mock only when:
+- External API (network calls)
+- Database (test isolation)
+- Time-dependent logic
+- Third-party services
+
+### Common Mock Patterns
+
+**Supabase:**
+```typescript
+jest.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        eq: jest.fn(() => Promise.resolve({ data: mockData, error: null }))
+      }))
+    }))
+  }
+}))
+```
+
+**Fetch/API:**
+```typescript
+global.fetch = jest.fn(() =>
+  Promise.resolve({ ok: true, json: () => Promise.resolve(mockResponse) })
+) as jest.Mock
+```
+
+**Redis:**
+```typescript
+jest.mock('@/lib/redis', () => ({
+  get: jest.fn(() => Promise.resolve(cachedValue)),
+  set: jest.fn(() => Promise.resolve('OK'))
+}))
+```
+
+**Environment Variables:**
+```typescript
+beforeEach(() => {
+  process.env.API_KEY = 'test-key'
+})
+afterEach(() => {
+  delete process.env.API_KEY
+})
+```
+
+**Time:**
+```typescript
+jest.useFakeTimers()
+// In test:
+jest.advanceTimersByTime(1000)
+```
+
+**Mock quality check:** If mock setup > test code, reconsider design.
 
 ## Why Order Matters
 
@@ -338,8 +409,36 @@ Before marking work complete:
 - [ ] Output pristine (no errors, warnings)
 - [ ] Tests use real code (mocks only if unavoidable)
 - [ ] Edge cases and errors covered
+- [ ] No hanging test processes (pgrep -f "vitest|jest" returns empty)
 
 Can't check all boxes? You skipped TDD. Start over.
+
+## Coverage Threshold (Project Default)
+
+Target: **80%+ code coverage** across:
+- Branches: 80%
+- Functions: 80%
+- Lines: 80%
+- Statements: 80%
+
+**Verify with:** `npm run test:coverage` or equivalent.
+
+**Below threshold?** Add missing tests before claiming completion.
+
+## Test Smells (Anti-Patterns)
+
+| Smell | Bad Example | Why It's Bad | Fix |
+|-------|-------------|--------------|-----|
+| **Testing implementation** | `expect(component.state.count).toBe(5)` | Breaks when internals change | Test user-visible behavior |
+| **Dependent tests** | Test B relies on Test A's state | Flaky, order-dependent | Each test sets up own data |
+| **Mocking everything** | Every dependency mocked | Tests mock, not code | Use real code where feasible |
+| **Giant setup** | 50 lines of setup per test | Hard to understand | Extract factories |
+| **Magic numbers** | `expect(result).toBe(42)` | Meaning unclear | Use named constants |
+| **Test name lies** | `test('works')` passes but doesn't test 'works' | Misleading | Name describes actual behavior |
+| **No assertions** | `test('loads', () => { loadData() })` | Tests nothing | Always assert outcomes |
+| **Commented tests** | `// test('edge case'...` | Dead code, skipped coverage | Delete or uncomment |
+
+**If you spot these in your tests:** Fix before claiming TDD cycle complete.
 
 ## When Stuck
 

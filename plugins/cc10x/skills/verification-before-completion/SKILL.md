@@ -1,7 +1,7 @@
 ---
 name: verification-before-completion
 description: "Internal skill. Use cc10x-router for all development tasks."
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash, LSP
 ---
 
 # Verification Before Completion
@@ -222,6 +222,197 @@ Before marking work complete:
 COMPLETE - All verifications passed with fresh evidence
 ```
 
+## Evidence Array Protocol
+
+**Every claim in verification output MUST have a corresponding evidence entry.**
+
+**Format:** `[command] → exit [code]: [result summary]`
+
+**Rules:**
+1. One evidence entry per claim — no claim without evidence, no evidence without claim
+2. Evidence must be from THIS session (not recalled from memory)
+3. Exit codes are mandatory — "looks good" is not evidence
+4. Group evidence by claim type:
+
+```
+EVIDENCE:
+  tests: ["CI=true npm test → exit 0: 34/34 passed"]
+  build: ["npm run build → exit 0: compiled in 2.3s"]
+  feature: ["curl localhost:3000/api/health → exit 0: {status: ok}"]
+  regression: ["npm test -- auth.test.ts → exit 0: regression case passes"]
+```
+
+**Verification Summary must include this EVIDENCE block before the Status line.**
+
+**Anti-pattern:** `Status: COMPLETE - All verifications passed` without EVIDENCE block = INVALID.
+
+## Goal-Backward Lens (GSD-Inspired)
+
+After standard verification passes, apply this additional check:
+
+### Three Questions
+1. **Truths:** What must be OBSERVABLE? (user-facing behaviors)
+2. **Artifacts:** What must EXIST? (files, endpoints, tests)
+3. **Wiring:** What must be CONNECTED? (component → API → database)
+
+### Why This Catches Stubs
+A component can:
+- Exist ✓
+- Pass lint ✓
+- Have tests ✓
+- But NOT be wired to the system ✗
+
+Goal-backward asks: "Does the GOAL work?" not "Did the TASK complete?"
+
+### Quick Check Template
+```
+GOAL: [What user wants to achieve]
+
+TRUTHS (observable):
+- [ ] [User-facing behavior 1]
+- [ ] [User-facing behavior 2]
+
+ARTIFACTS (exist):
+- [ ] [Required file/endpoint 1]
+- [ ] [Required file/endpoint 2]
+
+WIRING (connected):
+- [ ] [Component] → [calls] → [API]
+- [ ] [API] → [queries] → [Database]
+
+Standard verification: exit code 0 ✓
+Goal check: All boxes checked?
+```
+
+### When to Apply
+- After integration-verifier runs
+- After any "feature complete" claim
+- Before marking BUILD workflow as done
+
+**Iron Law unchanged:** Exit code 0 still required. This is an additional verification lens, not a replacement.
+
+## Stub Detection Patterns
+
+After Goal-Backward Lens passes, scan for these stub indicators:
+
+### Universal Stubs
+```bash
+# Check for TODO/placeholder markers
+grep -rE "TODO|FIXME|placeholder|not implemented|coming soon" --include="*.ts" --include="*.tsx" --include="*.js"
+
+# Check for empty returns
+grep -rE "return null|return undefined|return \{\}|return \[\]" --include="*.ts" --include="*.tsx"
+```
+
+### React Component Stubs
+| Pattern | Why It's a Stub |
+|---------|-----------------|
+| `return <div>Placeholder</div>` | Renders nothing useful |
+| `onClick={() => {}}` | Click does nothing |
+| `onSubmit={(e) => e.preventDefault()}` | Only prevents default, no action |
+| `useState` with no setter calls | State never changes |
+
+### API Route Stubs
+| Pattern | Why It's a Stub |
+|---------|-----------------|
+| `return Response.json({ message: "Not implemented" })` | Explicit stub |
+| `return Response.json([])` without DB query | Returns empty, no real data |
+| `return NextResponse.json({})` with no logic | Empty response |
+
+### Function Stubs
+| Pattern | Why It's a Stub |
+|---------|-----------------|
+| `throw new Error("Not implemented")` | Will crash at runtime |
+| `console.log("TODO")` | Debug artifact |
+| `// TODO: implement` | Marked incomplete |
+
+### Quick Stub Check
+```bash
+# Run before claiming completion
+grep -rE "(TODO|FIXME|placeholder|not implemented)" src/
+grep -rE "onClick=\{?\(\) => \{\}\}?" src/
+grep -rE "return (null|undefined|\{\}|\[\])" src/
+```
+
+**If any stub patterns found:** DO NOT claim completion. Fix or document why it's intentional.
+
+### Wiring Verification (Component → API → Database)
+
+Artifacts can exist, pass lint, and have tests but NOT be wired to the system.
+
+**Component → API Check:**
+```bash
+# Does component actually call the API?
+grep -E "fetch\(['\"].*api|axios\.(get|post)" src/components/
+# Is response actually used?
+grep -A 5 "fetch\|axios" src/components/ | grep -E "await|\.then|setData|setState"
+```
+
+**API → Database Check:**
+```bash
+# Does API actually query database?
+grep -E "prisma\.|db\.|mongoose\." src/app/api/
+# Is result actually returned?
+grep -E "return.*json.*data|Response\.json" src/app/api/
+```
+
+**Red Flags:**
+| Pattern | Problem |
+|---------|---------|
+| `fetch('/api/x')` with no `await` | Call ignored |
+| `await prisma.findMany()` → `return { ok: true }` | Query result discarded |
+| Handler only has `e.preventDefault()` | Form does nothing |
+
+**Line Count Minimums:**
+| File Type | Minimum Lines | Below = Likely Stub |
+|-----------|---------------|---------------------|
+| Component | 15 | Too thin |
+| API route | 10 | Too thin |
+| Hook/util | 10 | Too thin |
+
+### Export/Import Verification
+
+Exports can exist but never be consumed. Check that key exports are actually used:
+
+```bash
+# Check if export is imported AND used (not just imported)
+check_export_used() {
+  local export_name="$1"
+  grep -r "import.*$export_name" src/ --include="*.ts" --include="*.tsx" | wc -l
+  grep -r "$export_name" src/ --include="*.ts" --include="*.tsx" | grep -v "import\|export" | wc -l
+}
+
+# Example: Check auth exports are consumed
+check_export_used "getCurrentUser"
+check_export_used "useAuth"
+```
+
+**Export Status:**
+| Status | Meaning | Action |
+|--------|---------|--------|
+| CONNECTED | Imported AND used | ✓ Good |
+| IMPORTED_NOT_USED | Import exists but never called | Remove dead import or implement |
+| ORPHANED | Export exists, never imported | Dead code or missing integration |
+
+### Auth Protection Verification
+
+Sensitive routes must check authentication:
+
+```bash
+# Find routes that should be protected
+protected_patterns="dashboard|settings|profile|account|admin"
+grep -r -l "$protected_patterns" src/app/ --include="*.tsx"
+
+# For each, verify auth usage
+check_auth_protection() {
+  local file="$1"
+  grep -E "useAuth|useSession|getCurrentUser|isAuthenticated" "$file"
+  grep -E "redirect.*login|router.push.*login" "$file"
+}
+```
+
+**If sensitive route lacks auth check:** Add protection before claiming completion.
+
 ## The Bottom Line
 
 **No shortcuts for verification.**
@@ -229,3 +420,16 @@ COMPLETE - All verifications passed with fresh evidence
 Run the command. Read the output. THEN claim the result.
 
 This is non-negotiable.
+
+## Completion Guard (Final Gate Before Router Contract)
+
+**IMMEDIATELY before writing `### Router Contract (MACHINE-READABLE)`, verify ALL:**
+
+1. **Acceptance criteria met?** — Re-read task description. Check each criterion. Any gap = STATUS:FAIL
+2. **Evidence array complete?** — Every claim has `[command] → exit [code]` entry from THIS session
+3. **No stubs in changed files?** — Run stub detection on files YOU modified (not entire repo)
+4. **Fresh verification?** — Last test/build command ran in THIS message (not earlier in conversation)
+
+**If ANY check fails:** Fix it FIRST, then re-run Completion Guard. Do NOT emit Router Contract with STATUS:PASS/FIXED/APPROVE until all 4 pass.
+
+**This is the LAST gate. No exceptions. No "close enough."**

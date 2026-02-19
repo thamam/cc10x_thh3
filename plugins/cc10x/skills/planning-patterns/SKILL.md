@@ -1,7 +1,7 @@
 ---
 name: planning-patterns
 description: "Internal skill. Use cc10x-router for all development tasks."
-allowed-tools: Read, Grep, Glob, AskUserQuestion
+allowed-tools: Read, Grep, Glob, AskUserQuestion, LSP
 ---
 
 # Writing Plans
@@ -59,7 +59,7 @@ NO VAGUE STEPS - EVERY STEP IS A SPECIFIC ACTION
 ---
 ```
 
-**Note:** If a design document exists, always reference it in the header.
+If a design document exists, always reference it in the header.
 
 ## Task Structure
 
@@ -224,6 +224,33 @@ Before planning, document all flows:
 5. Response returns [data]
 ```
 
+## Architecture Decision Records (ADR)
+
+**When comparing approaches, document the decision formally:**
+
+Use this format when a plan involves choosing between multiple valid approaches:
+
+```markdown
+## ADR: [Decision Title]
+
+**Context:** What situation or requirement prompted this decision?
+
+**Decision:** What approach did we choose?
+
+**Consequences:**
+- **Positive:** [benefits of this choice]
+- **Negative:** [tradeoffs we accept]
+- **Alternatives Considered:** [what we didn't choose and why]
+```
+
+**When to use ADR:**
+- Choosing between architectures (monolith vs microservices)
+- Selecting libraries/frameworks (React vs Vue)
+- Database decisions (SQL vs NoSQL)
+- Authentication approaches (JWT vs sessions)
+
+**Save ADRs to:** `docs/decisions/ADR-NNN-title.md`
+
 ## Red Flags - STOP and Revise
 
 If you find yourself:
@@ -266,7 +293,9 @@ If you find yourself:
 
 ---
 
-## Phase 1: Foundation
+## Phase 1: [Demonstrable Milestone]
+
+> **Exit Criteria:** [What must be true when this phase is complete - e.g., "User can log in and receive JWT"]
 
 ### Task 1: [First Component]
 
@@ -328,62 +357,142 @@ Bash(command="mkdir -p docs/plans")
 # Then save plan using Write tool (permission-free)
 Write(file_path="docs/plans/YYYY-MM-DD-<feature>-plan.md", content="[full plan content from output format above]")
 
-# Then commit (separate commands to avoid permission prompt)
-Bash(command="git add docs/plans/*.md")
-Bash(command="git commit -m 'docs: add <feature> implementation plan'")
+# Do NOT auto-commit — let the user decide when to commit
 ```
 
 ### Step 2: Update Memory (CRITICAL - Links Plan to Memory)
 
-**Use Edit tool (NO permission prompt):**
+**Use Read-Edit-Verify with stable anchors:**
 
 ```
-# First read existing content
+# Step 1: READ
 Read(file_path=".claude/cc10x/activeContext.md")
 
-# Then use Edit to replace (matches first line, replaces entire content)
+# Step 2: VERIFY anchors exist (## References, ## Recent Changes, ## Next Steps)
+
+# Step 3: EDIT using stable anchors
+# Add plan to References
 Edit(file_path=".claude/cc10x/activeContext.md",
-     old_string="# Active Context",
-     new_string="# Active Context
+     old_string="## References",
+     new_string="## References\n- Plan: `docs/plans/YYYY-MM-DD-<feature>-plan.md`")
 
-## Current Focus
-Plan created for [feature]. Ready for execution.
+# Index the plan creation in Recent Changes
+Edit(file_path=".claude/cc10x/activeContext.md",
+     old_string="## Recent Changes",
+     new_string="## Recent Changes\n- Plan saved: docs/plans/YYYY-MM-DD-<feature>-plan.md")
 
-## Recent Changes
-- Plan saved to docs/plans/YYYY-MM-DD-<feature>-plan.md
+# Make execution the default next step
+Edit(file_path=".claude/cc10x/activeContext.md",
+     old_string="## Next Steps",
+     new_string="## Next Steps\n1. Execute plan: docs/plans/YYYY-MM-DD-<feature>-plan.md")
 
-## Next Steps
-1. Execute plan at docs/plans/YYYY-MM-DD-<feature>-plan.md
-2. Follow TDD cycle for each task
-3. Update progress.md after each task
-
-## Active Decisions
-| Decision | Choice | Why |
-|----------|--------|-----|
-| [Key decisions from plan] | [Choice] | [Reason] |
-
-## Plan Reference
-**Execute:** `docs/plans/YYYY-MM-DD-<feature>-plan.md`
-
-## Last Updated
-[current date/time]")
+# Step 4: VERIFY (do not skip)
+Read(file_path=".claude/cc10x/activeContext.md")
 ```
 
-**Also append to progress.md using Edit:**
+**Also append to progress.md using stable anchor:**
 ```
 Read(file_path=".claude/cc10x/progress.md")
 
 Edit(file_path=".claude/cc10x/progress.md",
-     old_string="[last section heading]",
-     new_string="[last section heading]
+     old_string="## Completed",
+     new_string="## Completed\n- [x] Plan saved - docs/plans/YYYY-MM-DD-<feature>-plan.md")
 
-## Plan Created
-- [x] Plan saved - docs/plans/YYYY-MM-DD-<feature>-plan.md")
+# VERIFY (do not skip)
+Read(file_path=".claude/cc10x/progress.md")
 ```
 
 **WHY BOTH:** Plan files are artifacts. Memory is the index. Without memory update, next session won't know the plan exists.
 
 **This is non-negotiable.** Memory is the single source of truth.
+
+## Task-Based Execution Tracking
+
+After saving plan, create execution tasks for tracking progress:
+
+### Step 1: Create Parent Task
+```
+TaskCreate({
+  subject: "CC10X Execute Plan: {feature}",
+  description: "Plan file: docs/plans/YYYY-MM-DD-{feature}-plan.md\n\n{brief_plan_summary}",
+  activeForm: "Executing {feature} plan"
+})
+# Returns parent_task_id
+```
+
+### Step 2: Create Phase Tasks with Dependencies
+```
+# For each phase in plan:
+TaskCreate({
+  subject: "CC10X Phase 1: {phase_title}",
+  description: "**Plan:** docs/plans/YYYY-MM-DD-{feature}-plan.md\n**Section:** Phase 1\n**Exit Criteria:** {demonstrable_milestone}\n\n{phase_details}",
+  activeForm: "Working on {phase_title}"
+})
+# Returns phase_1_id
+
+TaskCreate({
+  subject: "CC10X Phase 2: {phase_title}",
+  description: "**Plan:** docs/plans/YYYY-MM-DD-{feature}-plan.md\n**Section:** Phase 2\n**Exit Criteria:** {demonstrable_milestone}\n\n{phase_details}",
+  activeForm: "Working on {phase_title}"
+})
+TaskUpdate({ taskId: phase_2_id, addBlockedBy: [phase_1_id] })
+
+# Continue for all phases...
+```
+
+### Step 3: Store Task IDs in Memory
+
+Update `.claude/cc10x/progress.md` with task *subjects* (and optionally task IDs for the current session).
+Do not rely on task IDs for long-term continuity unless you deliberately share the task list across sessions.
+
+Use Edit + Read-back verify:
+
+```
+Read(file_path=".claude/cc10x/progress.md")
+
+Edit(file_path=".claude/cc10x/progress.md",
+     old_string="## Tasks",
+     new_string="## Tasks
+
+- CC10X Execute Plan: {feature} (blocked by: -)
+- CC10X Phase 1: {title} (blocked by: -)
+- CC10X Phase 2: {title} (blocked by: CC10X Phase 1: {title})
+")
+
+# VERIFY (do not skip)
+Read(file_path=".claude/cc10x/progress.md")
+```
+
+**WHY:** Tasks help orchestration (dependencies + parallelism) and survive context compactions. For cross-session continuity, the plan file + CC10x memory files are the durable source of truth. If you intentionally share a task list across sessions (official Claude Code supports this), subjects/namespacing keep scope safe.
+
+## Plan-Task Linkage (Context Preservation)
+
+**The relationship between Plan Files and Tasks:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  PLAN FILE (Persistent - Source of Truth)                           │
+│  Location: docs/plans/YYYY-MM-DD-{feature}-plan.md                 │
+│  Contains: Full implementation details, TDD steps, file paths      │
+│  Survives: Session close, context compaction, conversation reset   │
+└─────────────────────────────────────────────────────────────────────┘
+                     ↕ task description includes the plan file path
+┌─────────────────────────────────────────────────────────────────────┐
+│  TASKS (Execution Engine)                                           │
+│  Contains: Status, dependencies, progress tracking                 │
+│  Survives: Context compaction; can be shared across sessions via   │
+│            task list configuration (official Claude Code)          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Plan path-in-description is CRITICAL:** If context compacts mid-execution, the task description contains enough info to:
+1. Find the plan file
+2. Locate the exact phase/task
+3. Continue without asking questions
+
+**Phase Exit Criteria are CRITICAL:** Each phase MUST have a demonstrable milestone (not arbitrary naming):
+- ❌ "Phase 1: Foundation" - Vague, when is it done?
+- ✅ "Phase 1: User can authenticate" - Demonstrable, testable
 
 ## Execution Handoff
 
@@ -396,12 +505,3 @@ After saving the plan, offer execution choice:
 **2. Manual Execution** - Follow plan step by step, verify each step
 
 **Which approach?"**
-
-## Remember
-
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- DRY, YAGNI, TDD, frequent commits
-- Each step = one action (2-5 minutes)
-- No assumptions about context

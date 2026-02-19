@@ -1,5 +1,803 @@
 # Changelog
 
+## [6.0.19] - 2026-02-15
+
+### Added
+
+- **Multi-Signal Scoring** (code-reviewer agent + code-review-patterns skill)
+  - Review passes now produce per-dimension HARD/SOFT signals (Security, Correctness, Performance, Maintainability, UX)
+  - HARD:0 on any dimension = CONFIDENCE:0 regardless of other scores
+  - Router can create targeted REM-FIX tasks ("Fix security" not "Fix something")
+  - Inspired by Babysitter's `score.md` per-signal rubric
+
+- **Evidence Array Protocol** (verification skill + integration-verifier + component-builder)
+  - Every PASS/APPROVE claim must include structured `EVIDENCE:` block
+  - Format: `[command] → exit [code]: [result summary]`
+  - SCENARIOS_PASSED count must match EVIDENCE entries — mismatch = INVALID
+  - Eliminates vibes-based completion claims
+
+- **Decision Checkpoints** (component-builder + planner + bug-investigator)
+  - Mandatory AskUserQuestion triggers: >3 files beyond plan, pattern choices, API contract breaks, new dependencies
+  - Planner marks `[CHECKPOINT]` decisions in plan output — pre-approved during BUILD
+  - Bug-investigator pauses when hypothesis confidence gap <20 between H1/H2
+
+- **Completion Guard** (verification skill + integration-verifier)
+  - Final 4-point gate before Router Contract emission: acceptance criteria, evidence array, no stubs, fresh verification
+  - Integration-verifier adds pre-completion checklist: scenarios count, orphan processes, stub scan, build check, goal-backward
+
+### Notes
+
+- ADJACENT risk level — no router, task protocol, agent chain, or memory anchor changes
+- 7 files changed, 158 insertions, 0 deletions (pure additions)
+- Smoke test: 42/42 passed
+- All edited files remain under 500-line soft cap
+- Inspired by competitive analysis of a5c-ai/babysitter orchestration framework
+
+## [6.0.18] - 2026-02-04
+
+### Added
+
+- **Complementary Skills Handoff** (Router + All 6 Agents)
+  - Router now reads CLAUDE.md Complementary Skills table and passes matching skills to agents via SKILL_HINTS
+  - All 6 agents now have explicit `## SKILL_HINTS (If Present)` section
+  - Agents invoke skills via `Skill(skill="{name}")` after memory load
+  - Fixes gap where complementary skills (react-best-practices, mongodb-agent-skills) weren't reaching subagents
+
+### Changed
+
+- Router: +1 line - "Also check CLAUDE.md Complementary Skills table and include matching skills in SKILL_HINTS"
+- All agents: +3 lines each - SKILL_HINTS section with invoke instruction
+
+### Notes
+
+- Based on Vercel article: passive context (CLAUDE.md) beats active retrieval
+- Router can see CLAUDE.md (runs in main Claude context), subagents cannot
+- This bridges the gap: Router reads → passes to agents → agents invoke
+
+## [6.0.17] - 2026-02-04
+
+### Added
+
+- **Planner Clarification Gate** (planner.md)
+  - Planner now asks clarifying questions BEFORE planning when requirements are ambiguous
+  - Decision table: vague idea → AskUserQuestion, multiple interpretations → AskUserQuestion with options
+  - If 3+ questions needed → invokes brainstorming skill for structured discovery
+
+- **Circuit Breaker Research Option** (cc10x-router)
+  - When 3+ remediations fail, "Research best practices" is now the recommended first option
+  - Triggers `github-research` skill to find external patterns before retrying
+  - Options: Research (recommended) / Fix locally / Skip / Abort
+
+### Notes
+
+- ADJACENT risk level (no router decision tree or agent chain changes)
+- 2 files changed: planner.md, cc10x-router/SKILL.md
+- Fixes gap where AI wouldn't ask clarifying questions
+
+## [6.0.16] - 2026-02-04
+
+### Fixed
+
+- **SKILL_HINTS now MUST be invoked** (Router)
+  - Changed: "Load IMMEDIATELY after memory" → "INVOKE via Skill() - not optional"
+  - Added explicit instruction: "Call `Skill(skill='{skill-name}')` immediately after memory load"
+  - Fixes bug where agents received hints but didn't invoke complementary skills (react-best-practices, mongodb-agent-skills)
+
+- **Plans include Recommended Skills for BUILD** (Planner)
+  - Plan output now lists skills component-builder should invoke
+  - Example: React/Next.js → `Skill(skill="react-best-practices")`
+  - Double safety: Skill invocation in plan + explicit SKILL_HINTS instruction
+
+### Notes
+
+- ADJACENT risk level (no router decision tree, agent chain, or task protocol changes)
+- 2 files changed: cc10x-router/SKILL.md, planner.md
+- ~8 lines added total
+- Version sync: plugin.json, README.md, CHANGELOG.md all aligned to 6.0.16
+
+## [6.0.15] - 2026-02-03
+
+### Added
+
+- **User Confirmation Gate** (github-research)
+  - Asks user before any research: "Do you want me to research GitHub and web for this task?"
+  - Bypass conditions: User said "research", debug workflow with 3+ failures
+  - Prevents unwanted research delays - user controls external calls
+
+- **Parallel Search Chain** (github-research)
+  - Tier 1: Octocode + Bright Data execute in SAME message (parallel)
+  - Different strengths: Octocode for real code, Bright Data for docs/tutorials
+  - Merge strategy: Code patterns from Octocode, context/warnings from Bright Data
+
+- **3-Tier Fallback System** (github-research)
+  - Tier 1: Parallel Search (Octocode + Bright Data MCP)
+  - Tier 2: Native Claude Code (WebSearch + WebFetch) if MCP unavailable
+  - Tier 3: Ask User for Context if all automated sources fail
+  - Graceful degradation - never fails silently
+
+- **New Tools Added** (github-research frontmatter)
+  - `WebSearch` - Native Claude Code fallback
+  - `AskUserQuestion` - User gate + final fallback
+  - `mcp__brightdata__search_engine` - Google/Bing search
+  - `mcp__brightdata__scrape_as_markdown` - Doc scraping
+
+### Notes
+
+- ADJACENT risk level (skill-only change, no router/agent chain modifications)
+- No Bible invariants affected
+- User experience improvement: Research happens when user wants it
+
+## [6.0.14] - 2026-02-03
+
+### Changed
+
+- **Simplified Skill Loading** (All 6 Agents + Router + Bible)
+  - Moved domain skills (frontend-patterns, architecture-patterns) to agent frontmatter
+  - Removed redundant SKILL_HINTS for skills now preloaded via frontmatter
+  - Only `github-research` remains conditional via SKILL_HINTS (external API cost)
+  - Updated agents: code-reviewer, silent-failure-hunter, integration-verifier (added domain skills)
+  - Updated agents: bug-investigator, planner (removed github-research from frontmatter)
+  - Updated router: Simplified SKILL_HINTS table to github-research only
+  - Updated Bible: 3 sections updated to reflect simplified model
+
+### Rationale
+
+- SKILL_HINTS keyword detection was fragile (could miss patterns)
+- Skills are guidance, not commands - irrelevant parts ignored by agent
+- One loading mechanism (frontmatter) is simpler than two (frontmatter + hints)
+- github-research stays conditional to avoid unnecessary external API calls
+
+### Fixed
+
+- Removed human-oriented version notes from AI instructions (router and Bible)
+  - Removed "v6.0.13+" notes and "Simplified Loading" subsection
+  - AI instructions should state current facts, not version history
+
+### Notes
+
+- CRITICAL risk level change, but only removes redundancy
+- Smoke test: All checks pass
+- No Bible invariants affected (skill loading is documented, not invariant)
+
+## [6.0.13] - 2026-02-03
+
+### Fixed
+
+- **FLAW-16: Task Status Update Unreliability** (Router + All 6 Agents)
+  - Router now owns task status updates - calls `TaskUpdate(completed)` after agent returns
+  - Agents no longer call TaskUpdate for their own task (unreliable in sub-agent context)
+  - Based on Claude Code sub-agent research: Task() return is the deterministic handoff point
+  - Updated: Router lines 372, 589 + all 6 agent Task Completion sections
+
+- **FLAW-18: Remediation Re-Review Logic in Prose** (Router)
+  - Replaced dense paragraphs with pseudocode flowchart
+  - AI can execute pseudocode more reliably than prose
+  - Updated: Router lines 475-495
+
+### Changed
+
+- **Bible + Logic Analysis docs updated** to reflect new task status ownership
+  - Bible: Lines 110, 113, 399
+  - Logic Analysis: Lines 235, 493, 509
+
+### Notes
+
+- Both fixes are ADJACENT risk level (no chain/DAG changes)
+- 10 flaws remaining (was 12)
+- Research: Sub-agents run in isolated context; don't rely on sub-agent bookkeeping
+
+## [6.0.12] - 2026-02-02
+
+### Added
+
+- **LSP Tool Support Expanded** (7 skills, 3 agents)
+  - Added LSP to `code-review-patterns`, `debugging-patterns`, `architecture-patterns` (with usage guidance sections)
+  - Added LSP to `frontend-patterns`, `code-generation`, `planning-patterns`, `verification-before-completion`
+  - All 6 agents already had LSP - now skills guide usage
+
+- **Git Bisect Example** (debugging-patterns)
+  - Full step-by-step workflow for "it worked before" scenarios
+  - Includes automated bisect with test command
+
+- **architecture-patterns Skill** (component-builder agent)
+  - Added to component-builder frontmatter skills for backend work support
+
+### Notes
+
+- All changes are ADJACENT risk level (safe patterns)
+- Smoke test: 19/19 passed
+- No Bible invariants affected
+
+## [6.0.11] - 2026-02-02
+
+### Fixed
+
+- **FLAW-20: "Active Decisions" Documentation Drift** (session-memory)
+  - 11 references to "Active Decisions table" → "Decisions section"
+  - Aligns with actual template that uses `## Decisions`
+
+- **FLAW-21: Canonical Sections Documentation Drift** (session-memory + router)
+  - Line 361: Old sections (`## Plan Reference`, etc.) → correct sections (`## References`, `## Decisions`)
+  - Router: "Research References table" → "References section"
+  - Aligns with merged `## References` section in template
+
+### Notes
+
+- Documentation-only fixes (no functional changes)
+- Bible already aligned with source of truth (no changes needed)
+- Source of truth: `plugins/cc10x/agents/` + `plugins/cc10x/skills/` as harmonized system
+
+## [6.0.10] - 2026-02-02
+
+### Fixed
+
+- **FLAW-15: Plan Reference Section Mismatch** (Router)
+  - Router now looks for `## References` + `- Plan:` instead of old `## Plan Reference` format
+  - Fixes plan detection that was silently failing
+
+- **FLAW-16: Agent Follow-up Task Naming** (All 5 Agents + Router)
+  - All agents now use `CC10X TODO:` prefix for follow-up tasks
+  - Router has new TODO handling section (lines 553-571)
+  - User gets visibility + control over non-blocking discoveries
+
+- **FLAW-17: Task Owner Check** (Bible)
+  - Removed owner check from task availability criteria (CC10x doesn't use owners)
+
+- **FLAW-18: planning-patterns Outdated Anchor** (planning-patterns)
+  - Changed `## Active Workflow Tasks` → `## Tasks` to match session-memory template
+
+- **FLAW-19: integration-verifier Non-namespaced Task** (integration-verifier)
+  - Added `CC10X TODO:` prefix for verification failure tasks
+
+### Changed
+
+- **Bible Task Types Table** expanded to show ALL task prefixes
+- **7 total flaws now fixed** (1, 2, 15, 16, 17, 18, 19)
+
+### Notes
+
+- External AI review validated orchestration - 5/6 claims were real issues
+- All functional files, agents, skills, router, and Bible now perfectly aligned
+- Zero risk of Edit anchor failures or orphaned tasks
+
+## [6.0.9] - 2026-02-01
+
+### Added
+
+- **Code Review Patterns Enhancement** (308 → 324 lines)
+  - **Pattern Recognition Criteria**: 4 criteria for identifying undocumented conventions during reviews (Tribal, Opinionated, Unusual, Consistent)
+  - Guidance for documenting discovered patterns in CLAUDE.md or standards
+
+### Notes
+
+- SAFE edit to existing skill (no orchestration impact)
+- Improvement extracted from `agent-os` reference audit
+- File remains well under 500-line limit (324 lines)
+- Follows cc10x-orchestration-safety protocol (edit-only, no new files)
+
+## [6.0.8] - 2026-02-01
+
+### Added
+
+- **Debugging Patterns Enhancement** (436 → 469 lines)
+  - **Meta-Debugging: Your Own Code**: Mindset for debugging code you wrote (fighting your own mental model)
+  - **When to Restart Investigation**: 5 criteria for starting over (2+ hours stuck, 3+ failed fixes, can't explain behavior, debugging the debugger, fix works but don't know why) plus restart protocol
+
+- **Verification Enhancement** (355 → 398 lines)
+  - **Export/Import Verification**: Scripts to check that exports are actually imported AND used (not just imported)
+  - **Auth Protection Verification**: Scripts to verify sensitive routes check authentication
+
+### Notes
+
+- All changes are SAFE edits to existing skills (no orchestration impact)
+- Improvements extracted from `get-shit-done` reference audit
+- All files remain under 500-line limit
+- Follows cc10x-orchestration-safety protocol (edit-only, no new files)
+
+## [6.0.7] - 2026-02-01
+
+### Added
+
+- **TDD Skill Enhancements** (386 → 470 lines)
+  - **Coverage Threshold**: 80%+ coverage target for branches, functions, lines, statements
+  - **Test Smells Table**: 8 anti-patterns with examples and fixes (testing implementation, dependent tests, mocking everything, giant setup, magic numbers, test name lies, no assertions, commented tests)
+  - **Mocking Examples**: Common mock patterns for Supabase, Fetch/API, Redis, environment variables, and time
+
+- **Debugging Patterns Enhancement** (399 → 436 lines)
+  - **Build & Type Errors Quick Reference**: 9 common TypeScript/build error patterns with causes and fixes
+  - **Minimal Diff Strategy**: Explicit guidance on fixing without over-engineering
+  - **Build Error Priority Table**: CRITICAL/HIGH/MEDIUM severity classification
+
+- **Code Review Security Enhancement** (266 → 308 lines)
+  - **Security Quick-Scan Commands**: 4 bash commands to detect hardcoded secrets, SQL injection risks, dangerous patterns, and console.log
+  - **Critical Security Patterns Table**: 6 patterns with risk, detection, and fix guidance
+  - **OWASP Top 10 Quick Reference**: Complete list for easy reference
+
+### Notes
+
+- All changes are SAFE edits to existing skills (no orchestration impact)
+- Improvements extracted from `everything-claude-code` reference audit
+- All files remain under 500-line limit
+- Follows cc10x-orchestration-safety protocol (edit-only, no new files)
+
+## [6.0.6] - 2026-02-01
+
+### Added
+
+- **Enhanced Frontend Patterns Skill** (582 lines, was 396)
+  - Extracted best practices from Vercel Web Interface Guidelines, Anti-AI Slop SKILL, and UI/UX Pro Max
+  - New sections:
+    - **Design Thinking (Pre-Code)**: Purpose, Tone, Constraints, Differentiation framework
+    - **Motion & Animation**: `prefers-reduced-motion`, compositor-friendly properties, timing rules
+    - **Typography Rules**: Ellipsis, curly quotes, non-breaking spaces, `tabular-nums`, `text-wrap: balance`
+    - **Content Overflow Handling**: `truncate`, `line-clamp`, `min-w-0` for flex children
+    - **Form Best Practices**: `autocomplete`, `inputMode`, never block paste, spellcheck off
+    - **Spatial Composition**: Asymmetry, overlap, diagonal flow, grid-breaking, negative space
+    - **Anti-patterns Blocklist**: 11 concrete items to flag with fixes
+    - **Light/Dark Mode**: Contrast rules, opacity values, `color-scheme`, `theme-color`
+    - **Performance Rules**: Virtualization, lazy loading, preconnect, font preload
+    - **URL & State Management**: Deep-linking, query params for filters/tabs/pagination
+    - **Touch & Mobile**: 44px targets, `touch-action`, `overscroll-behavior`, safe areas
+  - Expanded Visual Creativity with icons (SVG only, no emoji), cursor, hover, backgrounds
+  - Expanded Final Check with 5 additional verification items
+
+### Changed
+
+- **Frontend Patterns Skill** now covers comprehensive UI/UX guidelines from multiple industry sources
+- Follows cc10x-orchestration-safety protocol (edit-only, no new files)
+
+## [6.0.5] - 2026-01-31
+
+### Changed
+
+- **Ultra-Conservative Skill Cleanup**
+  - Removed only 3 truly redundant sections (-41 lines total)
+  - session-memory: Removed "The Bottom Line" (restates Iron Law)
+  - planning-patterns: Removed "Remember" (repeats earlier content)
+  - debugging-patterns: Removed "Real-World Impact" (statistics don't affect AI)
+
+### Preserved
+
+- All philosophical statements ("Violating the letter is violating the spirit")
+- All "Why This Matters" sections (provide context for rules)
+- All conceptual frameworks (Context Tiers, Quick Index, etc.)
+- All Rationalization Prevention tables
+- All Bible-mandated content (100%)
+
+## [6.0.4] - 2026-01-31
+
+### Added
+
+- **Debug Attempt Tracking Format** (FLAW 8 Fix)
+  - Explicit `[DEBUG-N]:` format for tracking debugging attempts in activeContext.md
+  - Router counts lines matching `[DEBUG-N]:` pattern to trigger external research after 3+ failures
+  - Bug-investigator documents required format with examples
+  - Session-memory template includes format placeholder
+
+### Changed
+
+- **Router** (cc10x-router/SKILL.md:214-223)
+  - Added "Debug Attempt Counting" section with format specification
+  - Added "What counts as an attempt" clarification (hypothesis tested with code change, NOT reading/thinking)
+
+- **Bug-Investigator** (bug-investigator.md:93-108)
+  - Added "Debug Attempt Format (REQUIRED for DEBUG workflow)" section
+  - Includes examples and explains why format is needed
+
+- **Session-Memory** (session-memory/SKILL.md:381)
+  - Added `[DEBUG-N]:` format to Recent Changes template
+
+### Fixed
+
+- **Research trigger undefined** (FLAW 8)
+  - Root cause: "3+ local debugging attempts failed" had no defined format
+  - Solution: `[DEBUG-N]: {what was tried} → {result}` format enables reliable counting
+
+## [6.0.3] - 2026-01-31
+
+### Added
+
+- **Stable Anchor Registry** (session-memory)
+  - Defined 7 guaranteed anchors: `## Recent Changes`, `## Learnings`, `## References`, `## Last Updated`, `## Common Gotchas`, `## Completed`, `## Verification`
+  - Explicit guidance: NEVER use table headers or checkbox text as anchors
+
+- **Read-Edit-Verify Pattern** (MANDATORY)
+  - 4-step sequence: Read → Verify Anchor → Edit → Verify Change
+  - Added to session-memory and all agent files
+  - Prevents "Error editing file" by ensuring anchors exist before use
+
+- **Extended Template Validation Gate** (Router)
+  - Now validates all canonical sections in activeContext.md and progress.md
+  - Auto-heals any missing sections using `## Last Updated` fallback
+
+### Changed
+
+- **activeContext.md Template** (12 → 8 sections)
+  - Merged: `## Active Decisions` + `## Learnings This Session` → `## Decisions` + `## Learnings`
+  - Merged: `## Plan Reference` + `## Design Reference` + `## Research References` → `## References`
+  - Removed: `## User Preferences Discovered` (goes in Learnings)
+
+- **progress.md Template** (8 → 5 sections)
+  - Merged: `## Active Workflow Tasks` + `## In Progress` + `## Remaining` → `## Tasks`
+  - Changed: `## Verification Evidence` table → `## Verification` bullets
+  - Removed: `## Known Issues`, `## Evolution of Decisions`, `## Implementation Results`
+
+- **Skills** (Table → Bullet Anchors)
+  - github-research: Changed from table header to `## References` anchor
+  - planning-patterns: Changed from `## Plan Reference` to `## References` anchor
+  - brainstorming: Changed from `## Design Reference` to `## References` anchor
+
+- **All Agents** (R-E-V Reminder)
+  - Added "Memory Updates (Read-Edit-Verify)" section with stable anchors list
+  - component-builder, bug-investigator, planner, integration-verifier, code-reviewer
+
+### Fixed
+
+- **"Error editing file" on Memory Operations**
+  - Root cause: 14 different Edit anchors, many brittle (table headers, optional sections)
+  - Solution: 7 stable anchors guaranteed to exist + Read-Edit-Verify pattern
+
+### Notes
+
+- Reduced anchor count from 14 to 7 (50% reduction)
+- All table-header anchors eliminated
+- Backward compatible: Template Validation Gate auto-heals old projects
+
+## [6.0.2] - 2026-01-31
+
+### Added
+
+- **Template Validation Gate** (Router - Backward Compatibility Fix)
+  - Router now auto-heals old projects by adding missing canonical sections
+  - Checks for `## Plan Reference`, `## Design Reference`, `## Research References` after loading memory
+  - If missing, inserts them before `## Last Updated` using a single Edit operation
+  - Idempotent: runs once per project (subsequent sessions find sections present)
+
+### Fixed
+
+- **Silent Edit Failures on Old Projects**
+  - v6.0.1 introduced targeted Edit anchors (e.g., `old_string="## Plan Reference"`)
+  - Projects created before v6.0.1 lacked these sections, causing Edits to fail silently
+  - Template Validation Gate ensures anchors exist before any skill tries to use them
+
+### Notes
+
+- This is a backward compatibility fix for projects migrating from pre-6.0.1 versions
+- New projects are unaffected (templates already include canonical sections)
+
+## [6.0.1] - 2026-01-31
+
+### Added
+
+- **Parallel-Safety Rules** (fixes FLAW 5 - memory race condition)
+  - Router now instructs: "Avoid memory edits during parallel phases"
+  - code-reviewer has explicit parallel-safety rule for BUILD workflow
+  - Memory updates deferred to workflow-final checkpoint
+
+- **Memory Update Targets** (all agents)
+  - Each agent now has explicit guidance on which files/sections to update
+  - Reduces ambiguity and prevents over-writing
+
+- **Session Memory "Guts" Documentation**
+  - Added "What Memory Actually Is" section explaining memory surfaces
+  - Added Promotion Ladder (observation → pattern → artifact → evidence)
+  - Added Ownership rules (who reads/writes)
+  - Added Concurrency Rule for parallel phases
+
+- **Canonical Sections in activeContext.md template**
+  - `## Plan Reference` and `## Design Reference` now in template
+  - Ensures Edit anchors exist for all new projects
+
+### Changed
+
+- **Agent Tools**
+  - code-reviewer: `Write` → `Edit` (proper tool for memory updates)
+  - integration-verifier: `Write` → `Edit`
+  - planner: added `Edit` tool
+
+- **Agent Modes**
+  - code-reviewer: READ-ONLY for repo code (memory edits still allowed)
+  - integration-verifier: READ-ONLY for repo code
+  - planner: READ-ONLY for repo code (plan files + memory still writable)
+
+- **Memory Loading**
+  - All agents now read all 3 memory files (activeContext, patterns, progress)
+  - Previously some agents only read 1-2 files
+
+- **Edit Patterns**
+  - brainstorming/planning-patterns: changed from whole-file replacement to small targeted edits
+  - github-research: Edit anchor changed to table header row for stability
+
+### Notes
+
+- This release completes the FLAW 5 fix from the orchestration analysis
+- Small targeted edits require canonical sections to exist (handled by updated templates)
+
+## [6.0.0] - 2026-01-31
+
+### Added
+
+- **Tasks Contract Hardening (official-schema aligned)**
+  - CC10X Tasks are now namespaced (subjects prefixed with `CC10X ...`) to prevent collisions and enable safer resumption.
+  - Router notes official task-list sharing via `CLAUDE_CODE_TASK_LIST_ID` and treats TaskLists as potentially long-lived.
+
+- **Task-Enforced Orchestration Gates (Flaw 4)**
+  - Missing critical evidence now creates a `CC10X REM-EVIDENCE:` task and blocks downstream tasks via `addBlockedBy`.
+  - Critical issues now create `CC10X REM-FIX:` tasks and block downstream tasks.
+  - BUILD workflows enforce a **re-review loop after remediation** (re-run reviewer + hunter before integration verification).
+
+### Changed
+
+- Router + planning skills no longer rely on undocumented TaskCreate fields (e.g., `metadata`).
+- Task examples standardized to canonical object-form calls (e.g., `TaskUpdate({ taskId: ..., status: \"...\" })`).
+
+### Notes
+
+- This release hardens orchestration reliability; it is intentionally strict to protect the system.
+
+## [5.25.3] - 2026-01-30
+
+### Added
+
+- **Anti-Hardcode Gate** (bug-investigator)
+  - Variant scan required before fixing (locale/config/roles/runtime/time/data/concurrency/network/cache)
+  - Regression tests must cover at least one non-default variant when applicable
+
+### Changed
+
+- bug-investigator now **TDD-first** for DEBUG:
+  - RED regression test before fix, GREEN after
+  - Output requires TDD evidence + variant coverage summary
+- Router validation requires bug-investigator TDD evidence + variant coverage before proceeding
+
+### Notes
+
+- No changes to task DAGs or workflow order
+- Router change is validation-only (evidence gate)
+
+## [5.25.2] - 2025-01-29
+
+### Added
+
+- **Iterative Retrieval Pattern** (stolen from Everything Claude Code)
+  - Added to bug-investigator: Context Retrieval step for large codebase debugging
+  - Added to planner: Context Retrieval step before designing features
+  - Pattern: DISPATCH (broad) → EVALUATE (score 0-1) → REFINE (narrow) → LOOP (max 3)
+  - Stop condition: 3+ files with relevance ≥0.7 AND no critical gaps
+
+### Changed
+
+- bug-investigator Process section: Steps renumbered (new step 3, old 3-8 → 4-9)
+- planner Process section: Steps renumbered (new step 2, old 2-6 → 3-7)
+
+### Notes
+
+- Zero orchestration impact: Pure guidance content in SAFE zones
+- No changes to: router, agent chains, output formats, task system
+
+## [5.25.1] - 2025-01-29
+
+### Added
+
+- **Wiring Verification Patterns** (verification-before-completion skill)
+  - Component → API check: grep patterns to verify fetch calls exist and response is used
+  - API → Database check: grep patterns to verify queries exist and results are returned
+  - Red flags table for common wiring stubs
+  - Line count minimums by file type (Component: 15, API: 10, Hook: 10)
+
+- **Hypothesis Quality Criteria** (debugging-patterns skill)
+  - Falsifiability requirement: "A good hypothesis can be proven wrong"
+  - Bad vs Good hypothesis examples (vague → specific)
+  - Cognitive biases table: Confirmation, Anchoring, Availability, Sunk Cost with antidotes
+
+### Changed
+
+- Enhanced stub detection with GSD-inspired wiring verification patterns
+- Enhanced debugging guidance with scientific hypothesis criteria
+
+## [5.25.0] - 2025-01-29
+
+### Added
+
+- **Plan File Propagation (FIX 1)**: Router now passes `Plan File:` explicitly in agent prompt
+  - component-builder checks prompt's Task Context for plan file path
+  - No longer relies on inaccessible task metadata
+
+- **Results Collection (FIX 2)**: New pattern for parallel agent output passing
+  - Router collects code-reviewer + silent-failure-hunter findings
+  - Passes merged findings to integration-verifier in prompt
+  - Task system handles coordination, router handles content
+
+- **Skill Loading Hierarchy (FIX 3)**: Documented 3-tier skill loading priority
+  - Tier 1: Agent frontmatter `skills:` (automatic preload)
+  - Tier 2: Router's SKILL_HINTS (mandatory, agent must load)
+  - Tier 3: Agent's Skill Triggers (optional, agent judgment)
+
+- **Enhanced Post-Agent Validation (FIX 4)**: Structured validation with required sections table
+  - Per-agent required sections and evidence documented
+  - Options: create remediation task OR ask user
+  - Soft validation to avoid breaking workflows
+
+### Changed
+
+- **Agent Invocation Template**: Restructured with clear markdown sections
+  - Task Context, User Request, Requirements, Memory Summary, Project Patterns, SKILL_HINTS
+  - Consistent format across all agent invocations
+
+- **README Redesign**: Complete visual overhaul as landing page
+  - Strong positioning vs bloated plugins (50+ skills, 30+ agents problem)
+  - Visual flow diagram showing orchestration
+  - Side-by-side comparison (without vs with cc10x)
+  - Collapsible version history
+
+## [5.24.1] - 2025-01-28
+
+### Fixed
+
+- **Research Persistence** - Added atomic checkpoint guidance to `github-research/SKILL.md`
+  - Documentation reminder to save research + update memory sequentially
+  - Prevents research files from becoming orphaned during context compaction
+
+- **TDD Evidence Template** - Enhanced `component-builder.md` output format
+  - Output template now includes exit code evidence for RED (exit 1) and GREEN (exit 0) phases
+  - Builder self-enforces TDD discipline through structured output
+
+- **Plan Reading Discipline** - Added plan-reading reminder to `component-builder.md`
+  - Builder reads plan file when provided (legacy references to `metadata.planFile` are deprecated as of v6.0.0)
+  - Self-enforced responsibility (no external validation)
+
+- **Silent Failure Hunter** - Enhanced `silent-failure-hunter.md` with active fixing
+  - Changed from read-only to active fixer for CRITICAL silent failures
+  - Empty catch blocks and silent failures fixed immediately, not deferred
+  - HIGH/MEDIUM issues still create follow-up tasks
+
+- **Rollback Strategy** - Added rollback decision tree to `integration-verifier.md`
+  - Three explicit options when verification fails: Create Fix Task, Revert Branch, or Document & Continue
+  - Prevents broken state from being left unaddressed
+
+- **DEBUG Research Triggers** - Aligned DEBUG workflow research triggers in `cc10x-router/SKILL.md`
+  - Added missing "3+ local debugging attempts failed" trigger
+  - Now consistent with skill trigger table
+
+### Removed
+
+- **Router Post-Agent Validation** - Removed from `cc10x-router/SKILL.md`
+  - Router is a one-shot starter, not a persistent orchestrator
+  - Cannot validate agent outputs after invocation (architectural reality)
+  - Agent self-discipline is the enforcement mechanism
+
+### Changed
+
+- **Agent Self-Enforcement Approach**: All agent improvements rely on self-discipline
+  - Gates and checklists are for agents to follow, not router to enforce
+  - Router starts workflow, agents are responsible for quality
+
+## [5.24.0] - 2025-01-27
+
+### Added
+
+- **Research Documentation Persistence**: Research insights no longer lost after context compaction
+  - `github-research` skill: Added mandatory 4-step save process
+  - `cc10x-router`: Added `RESEARCH_PERSISTED` gate to workflows
+  - `session-memory`: Added Research References table to activeContext template
+  - Research saved to `docs/research/YYYY-MM-DD-topic-research.md`
+  - Auto-extraction of gotchas to `patterns.md` with source tracking
+
+### Changed
+
+- **THREE-PHASE Research Pattern**: Replaced TWO-PHASE with persistence step
+  - Phase 1: Execute research (octocode tools)
+  - Phase 2: PERSIST to docs/research/ + update memory
+  - Phase 3: Pass results to agent
+
+## [5.23.0] - 2025-01-27
+
+### Added
+
+- **Plan-Task Linkage (legacy; deprecated in v6.0.0)**: Tasks included `metadata.planFile` for context recovery
+  - BUILD workflow tasks referenced plan file in description and metadata
+  - Enables agents to access original plan during execution
+  - Supports resume capability with full plan context
+
+## [5.22.0] - 2025-01-25
+
+### Added
+
+- **Stub Detection Patterns**: Added to verification-before-completion skill
+  - Universal stubs: TODO/FIXME markers, empty returns
+  - React component stubs: placeholder divs, no-op handlers
+  - API route stubs: unimplemented responses, empty JSON
+  - Function stubs: throw errors, debug artifacts
+  - Quick stub check bash commands for pre-completion scanning
+
+## [5.21.0] - 2025-01-25
+
+### Added
+
+- **Tasks System Integration**: Replaced text-based workflow signals with Anthropic's new Tasks system
+  - Router creates task hierarchy with `TaskCreate` at workflow start
+  - Agents call `TaskUpdate(status="completed")` when done
+  - Dependencies managed via `blockedBy` for proper chain execution
+  - `TaskList()` check at startup enables resume capability across sessions
+
+- **Task-Based Orchestration**: New orchestration pattern for all 4 workflows
+  - BUILD: component-builder → [code-reviewer ∥ silent-failure-hunter] → integration-verifier
+  - DEBUG: bug-investigator → code-reviewer → integration-verifier
+  - REVIEW: code-reviewer (single agent)
+  - PLAN: planner (single agent)
+
+- **Chain Execution Loop**: Task-based execution replacing text signal parsing
+  - Parallel execution when multiple tasks unblocked simultaneously
+  - Sync points via blockedBy dependencies
+  - Clear completion criteria: all tasks status="completed"
+
+- **New Gates**: TASKS_CHECKED, TASKS_CREATED, ALL_TASKS_COMPLETED
+
+### Removed
+
+- **Text-Based Workflow Signals**: Removed from all 6 agents
+  - WORKFLOW_CONTINUES, NEXT_AGENT, PARALLEL_AGENTS
+  - PARALLEL_COMPLETE, SYNC_NEXT, CHAIN_PROGRESS, CHAIN_COMPLETE
+
+### Changed
+
+- **Agent Output Format**: Simplified to Summary, Changes, Findings, Task Status
+- **planning-patterns**: Added Task-Based Execution Tracking section
+- **session-memory**: Added Active Workflow Tasks table to progress.md structure
+
+## [5.20.0] - 2025-01-20
+
+### Added
+
+- **Goal-Backward Lens**: Added to verification-before-completion skill
+  - TRUTHS: What observable user-facing behaviors exist?
+  - ARTIFACTS: What files, endpoints, tests were created?
+  - WIRING: What's connected (component → API → database)?
+
+## [5.19.0] - 2025-01-19
+
+### Added
+
+- **OWASP Top 10 Reference**: Added link to OWASP Top 10 in code-review-patterns Security Review Checklist
+- **Minimal Diffs Principle**: Added section to code-generation skill emphasizing focused changes without scope creep
+- **Architecture Decision Records (ADR)**: Added ADR pattern template to planning-patterns for documenting architectural decisions
+
+### Notes
+
+- Console.log check already exists in verification-before-completion/SKILL.md:152
+
+## [5.18.0] - 2025-01-14
+
+### Fixed
+
+- **Two-Phase GitHub Research Enforcement**: Fixed critical issue where planner agent was ignoring SKILL_HINTS for github-research
+  - Router now executes research FIRST using octocode tools directly (not as advisory hint)
+  - Research results are passed to planner/bug-investigator in prompt
+  - Research is now a PREREQUISITE, not a hint that can be skipped
+  - Added RESEARCH_EXECUTED gate before planner when github-research detected
+
+- **Explicit Research Request Trigger**: Added "research" to router triggers and explicit user request detection
+  - Keywords: "research", "github", "octocode", "find on github", "how do others", "best practices"
+  - Ensures router activates when user explicitly asks for GitHub research
+
+### Changed
+
+- **github-research Skill Simplified**: Reduced from ~201 lines to ~138 lines (31% smaller)
+  - Removed duplicated octocode guidance (octocode MCP handles HOW)
+  - Skill now focuses on WHEN to invoke and OUTPUT format for cc10x memory
+  - Updated Iron Law: "NO EXTERNAL RESEARCH WITHOUT CLEAR AI KNOWLEDGE GAP OR EXPLICIT USER REQUEST"
+  - Updated Integration Points to reflect Two-Phase execution model
+
+- **cc10x-router Workflows**: Updated PLAN and DEBUG workflows
+  - PLAN: Execute research FIRST, then invoke planner with results
+  - DEBUG: Execute research FIRST for external service errors, then invoke bug-investigator
+
+### Added
+
+- **New SKILL_HINTS Detection Row**: Explicit user request detection for github-research
+  - Pattern: User says "research", "github", "octocode", "find on github", "how do others", "best practices"
+  - Agents: planner, bug-investigator
+
 ## [5.15.0] - 2025-01-11
 
 ### Added

@@ -1,7 +1,7 @@
 ---
 name: debugging-patterns
 description: "Internal skill. Use cc10x-router for all development tasks."
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob, Bash, LSP
 ---
 
 # Systematic Debugging
@@ -51,6 +51,28 @@ For rapid debugging, use this concise flow:
 ```
 **Never fix solely where errors appear—trace to the original trigger.**
 
+## LSP-Powered Root Cause Tracing
+
+**Use LSP to trace execution flow systematically:**
+
+| Debugging Need | LSP Tool | Usage |
+|----------------|----------|-------|
+| "Where is this function defined?" | `lspGotoDefinition` | Jump to source |
+| "What calls this function?" | `lspCallHierarchy(incoming)` | Trace callers up |
+| "What does this function call?" | `lspCallHierarchy(outgoing)` | Trace callees down |
+| "All usages of this variable?" | `lspFindReferences` | Find all access points |
+
+**Systematic Call Chain Tracing:**
+```
+1. localSearchCode("errorFunction") → get file + lineHint
+2. lspGotoDefinition(lineHint=N) → see implementation
+3. lspCallHierarchy(incoming, lineHint=N) → who calls this?
+4. For each caller: lspCallHierarchy(incoming) → trace up
+5. Continue until you find the root cause
+```
+
+**CRITICAL:** Always get lineHint from localSearchCode first. Never guess line numbers.
+
 **For each issue provide:**
 - Root cause explanation
 - Evidence supporting diagnosis
@@ -59,6 +81,43 @@ For rapid debugging, use this concise flow:
 - Prevention recommendations
 
 ## Common Debugging Scenarios
+
+### Build & Type Errors (Quick Reference)
+
+**Commands:**
+```bash
+npx tsc --noEmit --pretty          # TypeScript check
+npm run build                       # Full build
+npx eslint . --ext .ts,.tsx        # Lint check
+```
+
+**Common Error → Fix Patterns:**
+
+| Error Pattern | Cause | Fix |
+|---------------|-------|-----|
+| `Parameter 'x' implicitly has 'any' type` | Missing type annotation | Add `: Type` annotation |
+| `Object is possibly 'undefined'` | Null safety violation | Add `?.` optional chaining or null check |
+| `Property 'x' does not exist on type` | Missing property | Add to interface or fix typo |
+| `Cannot find module 'x'` | Import path wrong or missing package | Fix path or `npm install` |
+| `Type 'string' is not assignable to 'number'` | Type mismatch | Parse string or fix type |
+| `'await' only allowed in async function` | Missing async keyword | Add `async` to function |
+| `JSX element 'X' has no corresponding closing tag` | Malformed JSX | Fix tag structure |
+| `Module not found: Can't resolve` | Path alias misconfigured | Check tsconfig paths |
+| `Export 'X' was not found in 'Y'` | Named export missing | Check export name/default |
+
+**Minimal Diff Strategy:**
+- Add type annotation where missing
+- Add null check where needed
+- Fix import path
+- **DO NOT:** Refactor, rename, or "improve" unrelated code
+
+**Build Error Priority:**
+
+| Level | Symptom | Action |
+|-------|---------|--------|
+| 🔴 CRITICAL | Build completely broken | Fix immediately |
+| 🟡 HIGH | Type errors in new code | Fix before commit |
+| 🟢 MEDIUM | Lint warnings | Fix when possible |
 
 ### Test Failures
 ```
@@ -93,6 +152,51 @@ For rapid debugging, use this concise flow:
 3. Examine async operation ordering
 4. Look for timing dependencies
 5. Add deterministic waits or proper synchronization
+```
+
+### Frontend Browser Errors
+```
+1. Request clean console: AskUserQuestion → "F12 → Console → Clear → reproduce → Copy all"
+2. Analyze grouped messages for repetition patterns
+3. Check for hidden CORS errors (enable "Show CORS errors in console")
+4. If insufficient: request user add console.log at suspected locations
+5. Trace to source of unexpected value
+```
+
+### Git Bisect (Finding Breaking Commit)
+
+**When to use:** "It worked before" scenarios.
+
+```bash
+# Start bisect
+git bisect start
+
+# Mark current (broken) as bad
+git bisect bad
+
+# Mark known good commit (e.g., last release)
+git bisect good v1.2.0
+
+# Git will checkout middle commit - test it
+npm test  # or whatever reproduces the bug
+
+# Mark result
+git bisect good  # if tests pass
+git bisect bad   # if tests fail
+
+# Repeat until git identifies the breaking commit
+# Git will output: "abc123 is the first bad commit"
+
+# End bisect
+git bisect reset
+```
+
+**Automate if you have a test:**
+```bash
+git bisect start
+git bisect bad HEAD
+git bisect good v1.2.0
+git bisect run npm test -- --grep "failing test"
 ```
 
 ## When to Use
@@ -233,6 +337,97 @@ You MUST complete each phase before proceeding to the next.
    - Ask for help
    - Research more
 
+### Hypothesis Quality Criteria
+
+**Falsifiability Requirement:** A good hypothesis can be proven wrong. If you can't design an experiment to disprove it, it's not useful.
+
+**Bad (unfalsifiable):**
+- "Something is wrong with the state"
+- "The timing is off"
+- "There's a race condition somewhere"
+
+**Good (falsifiable):**
+- "User state resets because component remounts when route changes"
+- "API call completes after unmount, causing state update on unmounted component"
+- "Two async operations modify same array without locking, causing data loss"
+
+**The difference:** Specificity. Good hypotheses make specific, testable claims.
+
+### Hypothesis Confidence Scoring
+
+**Track multiple hypotheses with confidence levels:**
+
+```
+H1: [hypothesis] — Confidence: [0-100]
+    Evidence for: [what supports this]
+    Evidence against: [what contradicts this]
+    Next test: [what would raise or lower confidence]
+
+H2: [hypothesis] — Confidence: [0-100]
+    Evidence for: [...]
+    Evidence against: [...]
+    Next test: [...]
+
+H3: [hypothesis] — Confidence: [0-100]
+    Evidence for: [...]
+    Evidence against: [...]
+    Next test: [...]
+```
+
+**Scoring guidance:**
+| Range | Meaning | Action |
+|-------|---------|--------|
+| 80-100 | Strong evidence, high certainty | Proceed to fix |
+| 50-79 | Circumstantial, needs more data | Run "Next test" |
+| 0-49 | Speculation, weak evidence | Deprioritize or discard |
+
+**Rules:**
+- Always maintain 2-3 hypotheses until one reaches 80+
+- Update confidence after EVERY piece of new evidence
+- Never proceed to fix with highest hypothesis below 50
+
+### Cognitive Biases in Debugging
+
+| Bias | Trap | Antidote |
+|------|------|----------|
+| **Confirmation** | Only look for evidence supporting your hypothesis | "What would prove me wrong?" |
+| **Anchoring** | First explanation becomes your anchor | Generate 3+ hypotheses before investigating any |
+| **Availability** | Recent bugs → assume similar cause | Treat each bug as novel until evidence suggests otherwise |
+| **Sunk Cost** | Spent 2 hours on path, keep going despite evidence | Every 30 min: "If fresh, would I take this path?" |
+
+### Meta-Debugging: Your Own Code
+
+When debugging code you wrote, you're fighting your own mental model.
+
+**Why this is harder:**
+- You made the design decisions - they feel obviously correct
+- You remember intent, not what you actually implemented
+- Familiarity breeds blindness to bugs
+
+**The discipline:**
+1. **Treat your code as foreign** - Read it as if someone else wrote it
+2. **Question your design decisions** - Your implementation choices are hypotheses, not facts
+3. **Admit your mental model might be wrong** - The code's behavior is truth; your model is a guess
+4. **Prioritize code you touched** - If you modified 100 lines and something breaks, those are prime suspects
+
+**The hardest admission:** "I implemented this wrong." Not "requirements were unclear" - YOU made an error.
+
+### When to Restart Investigation
+
+Consider starting over when:
+1. **2+ hours with no progress** - You're likely tunnel-visioned
+2. **3+ "fixes" that didn't work** - Your mental model is wrong
+3. **You can't explain the current behavior** - Don't add changes on top of confusion
+4. **You're debugging the debugger** - Something fundamental is wrong
+5. **The fix works but you don't know why** - This isn't fixed, this is luck
+
+**Restart protocol:**
+1. Close all files and terminals
+2. Write down what you know for certain
+3. Write down what you've ruled out
+4. List new hypotheses (different from before)
+5. Begin again from Phase 1
+
 ### Phase 4: Implementation
 
 **Fix the root cause, not the symptom:**
@@ -372,11 +567,3 @@ If systematic investigation reveals issue is truly environmental, timing-depende
 - All tests: PASS
 - Functionality: Restored
 ```
-
-## Real-World Impact
-
-From debugging sessions:
-- Systematic approach: 15-30 minutes to fix
-- Random fixes approach: 2-3 hours of thrashing
-- First-time fix rate: 95% vs 40%
-- New bugs introduced: Near zero vs common

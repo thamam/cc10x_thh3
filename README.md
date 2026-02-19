@@ -1,39 +1,266 @@
 # cc10x_thh3
 
-> **Fork Notice**: This is a fork of [thamam/cc10x_thh3](https://github.com/thamam/cc10x_thh3) maintained by @thamam for personal customizations and experiments.
+> **Fork Notice**: This is a fork of [romiluz13/cc10x](https://github.com/romiluz13/cc10x) maintained by @thamam for personal customizations and experiments.
 
 ---
 
-# cc10x - The Perfect Claude Code Workflow System
+# cc10x
 
-> **v5.15.0** | 6 Agents | 11 Skills | 1 Router | Memory Persistence | TDD Enforcement | Anthropic Best Practices
+### The Intelligent Orchestrator for Claude Code
 
-**cc10x is what Claude Code should be.** It transforms Claude from a helpful assistant into a disciplined engineering system that never cuts corners.
+**Current version:** 6.0.19
+
+**Recommended: Create `~/.claude/CLAUDE.md` (global) so the router is always active across all projects.**
+
+<p align="center">
+  <strong>1 Router</strong> &nbsp;•&nbsp; <strong>6 Agents</strong> &nbsp;•&nbsp; <strong>12 Skills</strong> &nbsp;•&nbsp; <strong>4 Workflows</strong>
+</p>
+
+<p align="center">
+  <em>Stop picking skills manually. Let the system work for you.</em>
+</p>
 
 ---
 
-## Why cc10x is Perfect
+## The Problem With Other Plugins
 
-### The Problem with Vanilla Claude Code
+Most Claude Code plugins are **bloated and over-engineered**:
 
-Without cc10x, Claude Code:
-- **Guesses** instead of investigating (fixes bugs without checking logs)
-- **Skips tests** ("I'll add tests later" = never)
-- **Claims success without evidence** ("It should work now")
-- **Forgets context** on long sessions (compaction loses everything)
-- **Picks random skills** instead of following workflows
+```
+❌ 50+ skills you'll never use
+❌ 30+ agents with overlapping responsibilities
+❌ No guidance on WHEN to use WHAT
+❌ You end up using nothing because it's overwhelming
+```
 
-### What cc10x Fixes
+**cc10x is different.** One intelligent router detects your intent and automatically orchestrates the right agents with the right skills. You just work.
 
-| Problem | cc10x Solution |
-|---------|---------------|
-| Guessing at bugs | **LOG FIRST** - Evidence before fixes |
-| Skipping tests | **TDD Enforcement** - RED-GREEN-REFACTOR or nothing |
-| "It works" claims | **Verification** - Exit code 0 or it didn't happen |
-| Context loss | **Memory Persistence** - Survives compaction |
-| Random skill picking | **Single Router** - One entry point, correct workflow |
-| False positives | **Confidence Scoring** - Only report issues with 80%+ confidence |
-| Building wrong thing | **User Confirmation Gates** - Clarify before implementing |
+---
+
+## How It Works
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│   YOU: "build a user auth system"                                            │
+│                                     ┌────────────────────────────────────┐   │
+│                              ┌─────►│  component-builder                 │   │
+│                              │      │  + TDD enforcement                 │   │
+│   ┌────────────────────┐     │      │  + code-generation skill           │   │
+│   │                    │     │      └──────────────┬─────────────────────┘   │
+│   │   cc10x-router     │─────┤                     │                         │
+│   │   (auto-detects    │     │      ┌──────────────▼─────────────────────┐   │
+│   │    BUILD intent)   │     │      │  code-reviewer ∥ silent-failure    │   │
+│   │                    │     │      │  (parallel execution)              │   │
+│   └────────────────────┘     │      └──────────────┬─────────────────────┘   │
+│                              │                     │                         │
+│                              │      ┌──────────────▼─────────────────────┐   │
+│                              └─────►│  integration-verifier              │   │
+│                                     │  + E2E validation                  │   │
+│                                     └────────────────────────────────────┘   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**You say what you want. cc10x figures out the rest.**
+
+---
+
+## 👤 FOR HUMANS: Read This
+
+### Step 1: Install Plugin
+
+```bash
+# Add marketplace
+/plugin marketplace add romiluz13/cc10x
+
+# Install plugin
+/plugin install cc10x@romiluz13
+```
+
+### Step 2: Setup Config Files
+
+Copy this README, paste it into Claude Code, and say: **"Set up cc10x for me"**
+
+### Step 3: Restart Claude Code
+
+Done!
+
+---
+
+## 🤖 FOR CLAUDE CODE: Execute This
+
+**When user says "set up cc10x", "install cc10x", or similar:**
+
+### Step 1: Check Existing Files
+- Read `~/.claude/CLAUDE.md` (may not exist)
+- Read `~/.claude/settings.json` (may not exist)
+
+### Step 2: Update `~/.claude/CLAUDE.md`
+
+**If file doesn't exist:** CREATE with the template below.
+**If file exists:** PREPEND the cc10x section below, keep user's existing content.
+
+```markdown
+# CC10x Orchestration (Always On)
+
+IMPORTANT: ALWAYS invoke cc10x-router on ANY development task. First action, no exceptions.
+IMPORTANT: Explore project first, then invoke the router.
+IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for orchestration decisions.
+IMPORTANT: Never bypass the router. It is the system.
+IMPORTANT: NEVER use Edit, Write, or Bash (for code changes) without first invoking cc10x-router.
+
+**Skip CC10x ONLY when:**
+- User EXPLICITLY says "don't use cc10x", "without cc10x", or "skip cc10x"
+- No interpretation. No guessing. Only these exact opt-out phrases.
+
+[CC10x]|entry: cc10x:cc10x-router
+
+---
+
+## Complementary Skills (Work Together with CC10x)
+
+**Skills are additive, not exclusive.** CC10x provides orchestration. Domain skills provide expertise. Both work together.
+
+**GATE:** Before writing code, check if task matches a skill below. If match, invoke it via `Skill(skill="...")`.
+
+| When task involves... | Invoke |
+|-----------------------|--------|
+| *(Add user's installed skills here)* | |
+```
+
+### Step 3: Update `~/.claude/settings.json`
+
+**If file doesn't exist:** CREATE with the template below.
+**If file exists:** MERGE these permissions into the existing `permissions.allow` array (don't overwrite!):
+
+```json
+"Bash(mkdir -p .claude/cc10x)",
+"Bash(mkdir -p docs/plans)",
+"Bash(mkdir -p docs/research)",
+"Bash(git status)",
+"Bash(git diff:*)",
+"Bash(git log:*)",
+"Bash(git branch:*)"
+```
+
+### Step 4: Scan Installed Skills & Add to Table
+
+**Where to find installed skills:**
+1. `~/.claude/settings.json` → check `enabledPlugins` object (plugins with value `true`)
+2. `~/.claude/plugins/installed_plugins.json` → detailed plugin info
+3. `~/.claude/skills/` → personal skills (all projects)
+4. `.claude/skills/` → project-specific skills
+
+**Skill naming in table:**
+- **Plugin skills:** `plugin-name:skill-name` (e.g., `mongodb-agent-skills:mongodb-schema-design`)
+- **Personal/project skills:** just the skill name (e.g., `react-best-practices`)
+
+**Example:** If user has these:
+```
+# In enabledPlugins:
+"mongodb-agent-skills@mongodb-agent-skills": true
+
+# In ~/.claude/skills/:
+react-best-practices/SKILL.md
+```
+
+**Add to the Complementary Skills table:**
+```markdown
+| When task involves... | Invoke |
+|-----------------------|--------|
+| MongoDB, schema, queries | `mongodb-agent-skills:mongodb-schema-design` |
+| React, Next.js, UI | `react-best-practices` |
+```
+
+### Step 5: Confirm
+> "cc10x is set up! Please restart Claude Code to activate."
+
+---
+
+## The 4 Workflows
+
+| Intent | Trigger Words | What Happens |
+|--------|---------------|--------------|
+| **BUILD** | build, implement, create, make, write, add | TDD cycle → Code review → Silent failure hunt → Integration verify |
+| **DEBUG** | debug, fix, error, bug, broken, troubleshoot | Log-first investigation → Review fix → Verify works |
+| **REVIEW** | review, audit, check, analyze, assess | Multi-dimensional review with 80%+ confidence scoring |
+| **PLAN** | plan, design, architect, roadmap, strategy | Comprehensive planning with external research |
+
+---
+
+## What Makes cc10x Different
+
+<table>
+<tr>
+<td width="50%">
+
+### Without cc10x
+
+```
+❌ Claude guesses at bugs
+❌ Skips tests ("I'll add later")
+❌ Claims "it should work"
+❌ Forgets context on compaction
+❌ Picks random skills
+❌ No verification evidence
+```
+
+</td>
+<td width="50%">
+
+### With cc10x
+
+```
+✓ LOG FIRST - evidence before fixes
+✓ TDD enforced - RED-GREEN-REFACTOR
+✓ Exit code 0 or it didn't happen
+✓ Memory persists across sessions
+✓ Router picks the right workflow
+✓ Confidence scoring (≥80% only)
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+## Quick Start Examples
+
+### Build Something
+```
+"build a user authentication system"
+
+→ Router detects BUILD intent
+→ Clarifies requirements FIRST (won't skip this)
+→ component-builder with TDD
+→ code-reviewer + silent-failure-hunter (parallel)
+→ integration-verifier
+→ Memory updated
+```
+
+### Fix a Bug
+```
+"debug the payment processing error"
+
+→ Router detects DEBUG intent
+→ Checks memory for Common Gotchas
+→ bug-investigator with LOG FIRST
+→ code-reviewer validates fix
+→ integration-verifier confirms
+→ Added to Common Gotchas
+```
+
+### Review Code
+```
+"review this PR for security issues"
+
+→ Router detects REVIEW intent
+→ code-reviewer with git context
+→ Only reports issues with ≥80% confidence
+→ File:line citations for every finding
+```
 
 ---
 
@@ -43,22 +270,22 @@ Without cc10x, Claude Code:
 USER REQUEST
      │
      ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    cc10x-router (ONLY ENTRY POINT)          │
-│  AUTO-EXECUTE on: build, review, debug, plan, fix, etc.     │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    cc10x-router (ONLY ENTRY POINT)              │
+│              Detects intent → Routes to workflow                │
+└─────────────────────────────────────────────────────────────────┘
      │
-     ├── BUILD intent ──► component-builder ──► [code-reviewer ∥ silent-failure-hunter] ──► integration-verifier
+     ├── BUILD ──► component-builder ──► [code-reviewer ∥ silent-failure-hunter] ──► integration-verifier
      │
-     ├── REVIEW intent ─► code-reviewer (or silent-failure-hunter for error handling)
+     ├── DEBUG ──► bug-investigator ──► code-reviewer ──► integration-verifier
      │
-     ├── DEBUG intent ──► bug-investigator ──► code-reviewer ──► integration-verifier
+     ├── REVIEW ─► code-reviewer
      │
-     └── PLAN intent ───► planner
+     └── PLAN ───► planner
 
 MEMORY (.claude/cc10x/)
 ├── activeContext.md  ◄── Current focus, decisions, learnings
-├── patterns.md       ◄── Project conventions, gotchas
+├── patterns.md       ◄── Project conventions, common gotchas
 └── progress.md       ◄── Completed work, remaining tasks
 ```
 
@@ -66,107 +293,98 @@ MEMORY (.claude/cc10x/)
 
 ## The 6 Agents
 
-| Agent | Role | Tools | Key Behavior |
-|-------|------|-------|--------------|
-| **component-builder** | Builds features | Read, Edit, Write, Bash, Grep, Glob, Skill | TDD: RED-GREEN-REFACTOR |
-| **bug-investigator** | Fixes bugs | Read, Edit, Write, Bash, Grep, Glob, Skill | LOG FIRST: Evidence before fixes |
-| **code-reviewer** | Reviews code | Read, Write, Bash, Grep, Glob, Skill | Confidence scoring: Only report >= 80% |
-| **integration-verifier** | Verifies E2E | Read, Write, Bash, Grep, Glob, Skill | Evidence-based: Exit codes matter |
-| **planner** | Creates plans | Read, Write, Bash, Grep, Glob, Skill | Saves plans to `docs/plans/` + updates memory |
-| **silent-failure-hunter** | Audits errors | Read, Write, Bash, Grep, Glob, Skill | Zero tolerance for empty catch blocks |
-
-### Why These Tools?
-
-- **Edit**: Only for agents that modify code (builder, bug-fix)
-- **Write**: All agents (for memory updates, saving outputs)
-- **Bash**: All agents (for running tests, memory load command)
-- **Grep/Glob**: All agents (for searching codebase)
-- **Skill**: All agents (for loading conditional skills)
+| Agent | Purpose | Key Behavior |
+|-------|---------|--------------|
+| **component-builder** | Builds features | TDD: RED → GREEN → REFACTOR (no exceptions) |
+| **bug-investigator** | Fixes bugs | LOG FIRST: Evidence before any fix |
+| **code-reviewer** | Reviews code | Confidence ≥80%: No vague feedback |
+| **silent-failure-hunter** | Finds error gaps | Zero tolerance for empty catch blocks |
+| **integration-verifier** | E2E validation | Exit codes: PASS/FAIL with evidence |
+| **planner** | Creates plans | Saves to `docs/plans/` + updates memory |
 
 ---
 
-## The 11 Skills
+## The 12 Skills
 
-Skills are **loaded by agents**, not invoked directly. This prevents Claude from picking skills randomly.
+Skills are **loaded automatically by agents**. You never invoke them directly.
 
-| Skill | Always Loaded By | Conditionally Loaded By | Purpose |
-|-------|------------------|------------------------|---------|
-| **session-memory** | ALL agents | - | Persist context across compaction |
-| **test-driven-development** | component-builder, bug-investigator | - | RED-GREEN-REFACTOR enforcement |
-| **code-generation** | component-builder | - | Write minimal code, match patterns |
-| **debugging-patterns** | bug-investigator, integration-verifier | - | LOG FIRST, root cause analysis |
-| **code-review-patterns** | code-reviewer, silent-failure-hunter | - | Two-stage review, security, quality |
-| **planning-patterns** | planner | - | Comprehensive plans, TDD tasks |
-| **brainstorming** | - | planner (idea exploration) | Explore ideas before implementation |
-| **architecture-patterns** | planner, integration-verifier | code-reviewer, component-builder, bug-investigator | System design, API design |
-| **frontend-patterns** | - | code-reviewer, component-builder, bug-investigator, integration-verifier, planner | UX, accessibility, visual design |
-| **verification-before-completion** | ALL agents | - | Evidence before claims |
-| **cc10x-router** | ENTRY POINT | - | Routes to correct workflow |
+| Skill | Used By | Purpose |
+|-------|---------|---------|
+| **session-memory** | WRITE agents | Persist context across compaction |
+| **verification-before-completion** | ALL agents | Evidence before claims |
+| **test-driven-development** | builder, bug-investigator | RED-GREEN-REFACTOR enforcement |
+| **code-generation** | component-builder | Minimal code, match patterns |
+| **debugging-patterns** | bug-investigator, verifier | Root cause analysis |
+| **code-review-patterns** | code-reviewer, hunter | Security, quality, performance |
+| **planning-patterns** | planner | Comprehensive plans |
+| **architecture-patterns** | ALL agents | System & API design |
+| **frontend-patterns** | ALL agents | UX, accessibility |
+| **brainstorming** | planner | Idea exploration |
+| **github-research** | planner, bug-investigator (conditional) | External package research |
+| **cc10x-router** | ENTRY POINT | Routes to correct workflow |
 
 ---
 
-## The 4 Workflows
+## Memory Persistence
 
-### BUILD Workflow
-
-**Trigger**: "build", "implement", "create", "make", "write", "add", "develop", "code"
+cc10x survives context compaction. This is critical for long sessions.
 
 ```
-1. LOAD MEMORY (activeContext, patterns, progress)
-2. CLARIFY REQUIREMENTS (CRITICAL: DO NOT SKIP)
-   - What exactly needs to be built?
-   - What are the acceptance criteria?
-   - What edge cases should be handled?
-   - WAIT for user answers
-3. INVOKE component-builder (TDD cycle)
-4. INVOKE code-reviewer (confidence scoring)
-5. INVOKE silent-failure-hunter (if error handling code)
-6. INVOKE integration-verifier (end-to-end)
-7. UPDATE MEMORY (learnings, decisions, progress)
+.claude/cc10x/
+├── activeContext.md   # What you're working on NOW
+│   - Current task
+│   - Active decisions (and WHY)
+│   - Learnings this session
+│
+├── patterns.md        # Project conventions
+│   - Code patterns
+│   - Common gotchas (bugs → fixes)
+│   - Architectural decisions
+│
+└── progress.md        # What's done, what's left
+    - Completed items (with evidence)
+    - Remaining tasks
+    - Blockers
 ```
 
-### REVIEW Workflow
+**Iron Law:** Every workflow loads memory at START and updates at END.
 
-**Trigger**: "review", "audit", "check", "analyze"
+---
 
-```
-1. LOAD MEMORY
-2. INVOKE code-reviewer
-   - Check git history (git log, git blame)
-   - Verify functionality first
-   - Security, quality, performance review
-   - Only report issues with confidence >= 80
-3. UPDATE MEMORY
-```
+## Task-Based Orchestration
 
-### DEBUG Workflow
-
-**Trigger**: "debug", "fix", "error", "bug", "broken", "troubleshoot"
+cc10x uses Claude Code's Tasks system for workflow coordination:
 
 ```
-1. LOAD MEMORY (check Common Gotchas!)
-2. INVOKE bug-investigator
-   - LOG FIRST: Gather evidence before fixing
-   - Root cause analysis
-   - Minimal targeted fix
-   - Regression test
-3. INVOKE code-reviewer (review the fix)
-4. INVOKE integration-verifier (verify fix works)
-5. UPDATE MEMORY (add to Common Gotchas!)
+┌─────────────────────────────────────────────────────────────────┐
+│  BUILD: User Authentication                                     │
+│  ├── component-builder (pending)                                │
+│  ├── code-reviewer (blocked by: builder)                        │
+│  ├── silent-failure-hunter (blocked by: builder)                │
+│  └── integration-verifier (blocked by: reviewer, hunter)        │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### PLAN Workflow
+- **Dependency chains**: Agents wait for blockers to complete
+- **Parallel execution**: reviewer + hunter run simultaneously
+- **Resume capability**: TaskList() checks for active workflows
+- **Automatic handoff**: Each agent updates status when done
 
-**Trigger**: "plan", "design", "architect", "roadmap", "strategy"
+---
+
+## Plan → Build Automation
+
+Plans don't get lost. They flow automatically to the build phase.
 
 ```
-1. LOAD MEMORY
-2. INVOKE planner
-   - Understand functionality
-   - Design architecture
-   - Identify risks
-   - Create roadmap
-3. UPDATE MEMORY (save architectural decisions)
+Day 1: "plan a task tracker"
+  → Planner creates docs/plans/2025-01-29-task-tracker-plan.md
+  → Memory updated with plan reference
+
+Day 2: "build it"
+  → Router detects BUILD
+  → component-builder finds plan in memory
+  → Follows plan phases with TDD
 ```
 
 ---
@@ -175,341 +393,117 @@ Skills are **loaded by agents**, not invoked directly. This prevents Claude from
 
 ### When You Say "Build a Task Tracker"
 
-**CORRECT (cc10x v5.10.0)**:
+**cc10x Response:**
 ```
 Detected BUILD intent. Executing BUILD workflow.
 
 Loading memory...
-[Runs memory load command]
+✓ Memory loaded
 
-Clarifying requirements (CRITICAL: DO NOT SKIP):
-1. What framework/language should I use? (Node.js, Python, etc.)
-2. Should tasks have priorities, due dates, or categories?
+Clarifying requirements (REQUIRED):
+1. What framework/language? (Node.js, Python, etc.)
+2. Should tasks have priorities, due dates, categories?
 3. CLI app or web app?
-4. Any specific features beyond basic CRUD?
+4. Any features beyond basic CRUD?
 
-Waiting for your answers before invoking component-builder.
+Waiting for your answers before proceeding.
 ```
 
-**WRONG (without cc10x)**:
+**Without cc10x:**
 ```
-I'll help you build a task tracker! Let me start by creating the files...
-
-[Writes code without asking questions]
+I'll help you build a task tracker! Let me start...
+[Writes code without asking]
 [Skips tests]
 [Claims "it should work"]
 ```
-
-### When You Say "Fix the Login Bug"
-
-**CORRECT (cc10x v5.10.0)**:
-```
-Detected DEBUG intent. Executing DEBUG workflow.
-
-Loading memory...
-[Checks Common Gotchas for similar issues]
-
-Understanding the issue:
-1. What error message are you seeing?
-2. What's the expected behavior vs actual behavior?
-3. When did it start happening?
-
-Waiting for details before invoking bug-investigator with LOG FIRST approach.
-```
-
-**WRONG (without cc10x)**:
-```
-The login bug is probably caused by [guesses at random cause].
-
-Let me try this fix... [changes code without checking logs]
-
-It should work now! [no verification]
-```
-
-### When You Say "Review This PR"
-
-**CORRECT (cc10x v5.10.0)**:
-```
-Detected REVIEW intent. Executing REVIEW workflow.
-
-Loading memory...
-
-Invoking code-reviewer...
-
-## Review Summary
-
-### Git Context
-- Recent commits: [relevant changes]
-- Authors: [who touched these files]
-
-### Skills Loaded
-- code-review-patterns: loaded
-- verification-before-completion: loaded
-
-## Critical Findings (confidence >= 80)
-- [95] SQL injection risk - src/api.ts:42
-  - Fix: Use parameterized queries
-
-## Important Findings (confidence >= 80)
-- [85] Missing input validation - src/form.ts:18
-  - Fix: Add email format check
-```
-
-**WRONG (without cc10x)**:
-```
-The code looks good overall. I noticed a few things:
-- Maybe add some comments?
-- The variable names could be better
-- Have you considered using TypeScript?
-
-[Vague feedback, no file:line citations, no confidence levels]
-```
-
----
-
-## Memory Persistence
-
-cc10x survives context compaction. This is critical for long sessions.
-
-### Memory Files
-
-```
-.claude/cc10x/
-├── activeContext.md   # What we're working on NOW
-│   - Current Task
-│   - Active Decisions (and WHY)
-│   - Learnings from this session
-│   - Immediate Next Steps
-│
-├── patterns.md        # Project conventions
-│   - Code Patterns (how this project writes code)
-│   - Common Gotchas (bugs we've seen and fixes)
-│   - Architectural Decisions (and rationale)
-│
-└── progress.md        # What's done, what's left
-    - Completed Items (with evidence)
-    - Remaining Tasks
-    - Blockers
-```
-
-### Iron Law
-
-```
-EVERY WORKFLOW MUST:
-1. LOAD memory at START (and before key decisions)
-2. UPDATE memory at END (and after learnings/decisions)
-```
-
-**Failure to update memory = incomplete workflow.**
-
----
-
-## Plan→Build Automation (v5.9.1)
-
-cc10x connects planning to building automatically. No more lost plans.
-
-### Two-Step Save Pattern
-
-When you create a plan:
-1. **Save artifact** → `docs/plans/YYYY-MM-DD-<feature>-plan.md`
-2. **Update memory** → `.claude/cc10x/activeContext.md` references the plan
-
-### Automatic Plan Detection
-
-When component-builder starts, it:
-```bash
-# Extracts plan reference from memory
-PLAN_REF=$(grep -oE 'docs/plans/[^ ]*\.md' .claude/cc10x/activeContext.md)
-
-# If plan exists, shows it
-if [ -f "$PLAN_REF" ]; then
-  cat "$PLAN_REF"
-  echo "=== FOLLOW THESE TASKS IN ORDER ==="
-fi
-```
-
-### Why This Matters
-
-| Without cc10x | With cc10x v5.9.1 |
-|---------------|-------------------|
-| Plan exists only in conversation | Plan saved to file |
-| Compaction loses the plan | Plan survives compaction |
-| Builder doesn't know about plan | Builder auto-loads plan |
-| Manual copy-paste needed | Automatic handoff |
-
-### Example Flow
-
-```
-Day 1: "Plan a task tracker"
-  → Planner creates docs/plans/2025-01-05-task-tracker-plan.md
-  → Memory updated: "Plan ready at docs/plans/..."
-
-Day 2: "Build it"
-  → Router detects BUILD intent
-  → component-builder loads memory
-  → grep finds plan reference
-  → cat shows plan content
-  → Builder follows plan tasks with TDD
-```
-
----
-
-## Why This System is the Best
-
-### 1. Single Entry Point (Router)
-
-Other systems let Claude pick any skill randomly. cc10x has ONE entry point that routes to the correct workflow. No more:
-- "Let me use brainstorming..." when you said "build"
-- "Let me load planning-patterns..." when you said "fix"
-
-### 2. Agents with Correct Tools
-
-Every agent has exactly the tools it needs:
-- Builders have Edit (they modify code)
-- Analyzers don't have Edit (they only report)
-- ALL agents have Write (for memory updates)
-- ALL agents have Bash (for running tests/commands)
-
-### 3. TDD Enforcement
-
-The component-builder agent MUST follow RED-GREEN-REFACTOR:
-1. Write failing test (RED)
-2. Write minimal code to pass (GREEN)
-3. Clean up (REFACTOR)
-
-**No exceptions.** If you wrote code before the test, delete it and start over.
-
-### 4. Evidence-Based Verification
-
-No "it should work" claims. cc10x requires:
-- Exit code 0 from test runs
-- Actual command output
-- Pass/fail evidence
-
-### 5. Confidence Scoring
-
-The code-reviewer only reports issues with confidence >= 80%. This eliminates:
-- False positives
-- Nitpicks
-- Style preferences
-- "Maybe this is an issue?"
-
-### 6. User Confirmation Gates
-
-BUILD workflow MUST clarify requirements before implementing:
-- What exactly needs to be built?
-- What are the acceptance criteria?
-- WAIT for user answers
-
-If user says "whatever you think", state your recommendation and get confirmation.
-
-### 7. Memory That Survives
-
-Context compaction loses everything in vanilla Claude. cc10x persists:
-- What you're working on
-- Decisions made and why
-- Common gotchas
-- Progress tracking
-
-### 8. Silent Failure Hunting
-
-The silent-failure-hunter agent finds error handling issues with zero tolerance:
-- Empty catch blocks
-- Log-only catches (user never knows)
-- Generic "Something went wrong" messages
-- Fallbacks without logging
-
----
-
-## Installation
-
-```bash
-# Add marketplace
-/plugin marketplace add thamam/cc10x_thh3
-
-# Install plugin
-/plugin install cc10x_thh3@thamam
-
-# Restart Claude Code
-```
-
----
-
-## Quick Start
-
-```bash
-# BUILD - Creates features with TDD
-"build a user authentication system"
-
-# REVIEW - Audits code with confidence scoring
-"review this PR for security issues"
-
-# DEBUG - Fixes bugs with LOG FIRST
-"debug the payment processing error"
-
-# PLAN - Creates comprehensive plans
-"plan the microservices architecture"
-```
-
----
-
-## Files Changed in v5.6.0
-
-### Agents (6 files)
-- `plugins/cc10x/agents/component-builder.md`
-- `plugins/cc10x/agents/bug-investigator.md`
-- `plugins/cc10x/agents/code-reviewer.md`
-- `plugins/cc10x/agents/integration-verifier.md`
-- `plugins/cc10x/agents/planner.md`
-- `plugins/cc10x/agents/silent-failure-hunter.md`
-
-### Skills (11 files)
-- `plugins/cc10x/skills/cc10x-router/SKILL.md`
-- `plugins/cc10x/skills/session-memory/SKILL.md`
-- `plugins/cc10x/skills/test-driven-development/SKILL.md`
-- `plugins/cc10x/skills/code-generation/SKILL.md`
-- `plugins/cc10x/skills/debugging-patterns/SKILL.md`
-- `plugins/cc10x/skills/code-review-patterns/SKILL.md`
-- `plugins/cc10x/skills/planning-patterns/SKILL.md`
-- `plugins/cc10x/skills/brainstorming/SKILL.md`
-- `plugins/cc10x/skills/architecture-patterns/SKILL.md`
-- `plugins/cc10x/skills/frontend-patterns/SKILL.md`
-- `plugins/cc10x/skills/verification-before-completion/SKILL.md`
 
 ---
 
 ## Version History
 
-- **v5.13.1** - Bulletproof chain enforcement: Added PARALLEL_COMPLETE+SYNC_NEXT to enforcement rules, explicit 3-step parallel sync, clarified code-reviewer output selection.
-- **v5.13.0** - Parallel agent execution: code-reviewer and silent-failure-hunter now run simultaneously in BUILD workflow (~30-50% faster review phase).
-- **v5.12.1** - Fixed orphan skills: Added brainstorming and frontend-patterns to planner, frontend-patterns to component-builder. All 10 skills now invokable.
-- **v5.12.0** - Pre-publish audit: Trimmed session-memory (512→480 lines), added missing `allowed-tools` to 4 skills, added AskUserQuestion to planning-patterns.
-- **v5.11.0** - Workflow chain enforcement: Agents now signal continuation with WORKFLOW_CONTINUES output format.
-- **v5.10.6** - Foolproof Router & Agents: Added decision tree with explicit precedence (ERROR>PLAN>REVIEW>BUILD), hard gates (MEMORY_LOADED, REQUIREMENTS_CLARIFIED, etc.), explicit skill detection triggers with pattern matching, and handoff templates for agent chains.
-- **v5.10.5** - Complete Permission-Free Audit: Fixed remaining compound commands in brainstorming, planner, and planning-patterns skills. All workflows now use separate tool calls.
-- **v5.10.4** - True Permission-Free Memory: Replaced ALL Bash compound commands (`&&`, `cat`) with separate tool calls (Read tool for loading, simple `mkdir -p` for directory creation). Memory now "breathes" autonomously.
-- **v5.10.3** - Fixed invalid agent color: silent-failure-hunter changed from 'orange' to 'red' (official color)
-- **v5.10.2** - Permission-Free Memory: Replaced ALL heredoc writes with Write tool (no permission needed), added explicit permission-free documentation to session-memory and router
-- **v5.10.1** - Router Supremacy: Expanded router keywords to capture ALL intents (memory, test, frontend, api, etc.), simplified skill/agent descriptions to pure redirects preventing bypass
-- **v5.10.0** - Anthropic Claude 4.x best practices alignment: visual creativity guidance, test generalization, language softening for Opus 4.5, code exploration discipline, reflection steps
-- **v5.9.1** - Plan→Build connection: grep+cat FORCES plan into builder context (100% confidence)
-- **v5.9.0** - Two-step save pattern: Artifact file + memory update, AskUserQuestion usage, UI mockups in brainstorming, observability section
-- **v5.8.1** - Strengthened router bypass prevention - all agents and skills explicitly prevent direct invocation
-- **v5.7.3** - Removed action keywords from agent descriptions (prevents router bypass!)
-- **v5.7.2** - Fixed skill documentation inconsistencies (accurate agent→skill mappings)
-- **v5.7.1** - Added verification-before-completion to silent-failure-hunter
-- **v5.7.0** - Fixed agent keyword conflicts (agents were bypassing router!)
-- **v5.6.0** - Fixed agent tool misconfigurations (planner couldn't save plans!)
-- **v5.5.0** - Fixed skill keyword conflicts (router is now ONLY entry point)
-- **v5.4.0** - Fixed router to AUTO-EXECUTE instead of listing capabilities
-- **v5.3.0** - Added confidence scoring, user confirmation gates, silent-failure-hunter
-- **v5.2.0** - Added session memory with READ+WRITE triggers
+| Version | Highlights |
+|---------|------------|
+| **v6.0.19** | Babysitter-inspired: Multi-signal HARD/SOFT scoring, evidence arrays, decision checkpoints, completion guard |
+| **v6.0.0** | Orchestration hardening: Tasks contract correctness + Task-enforced gates + re-review loop |
+| **v5.25.1** | GSD-inspired enhancements (wiring verification, hypothesis criteria) |
+| **v5.25.0** | Critical orchestration fixes + README redesign |
+| **v5.24.0** | Research persistence with THREE-PHASE pattern |
+| **v5.23.0** | Plan-task linkage (legacy: metadata.planFile; now deprecated) |
+| **v5.22.0** | Stub detection patterns |
+| **v5.21.0** | Task-based orchestration with TaskCreate/TaskUpdate |
+| **v5.20.0** | Goal-backward verification lens |
+| **v5.13.0** | Parallel agent execution (~30-50% faster) |
+| **v5.10.0** | Anthropic Claude 4.x best practices |
+| **v5.9.1** | Plan→Build automatic connection |
+
+<details>
+<summary>Full version history</summary>
+
+- **v6.0.19** - Babysitter-inspired enhancements: Multi-signal HARD/SOFT scoring (per-dimension review), evidence array protocol (structured proof), decision checkpoints (mandatory pause points), completion guard (final gate before Router Contract)
+- **v6.0.0** - Orchestration hardening:
+  - Tasks contract correctness (no undocumented TaskCreate fields; canonical TaskUpdate object form)
+  - CC10X task namespacing + safer resume rules
+  - Task-enforced gates + re-review loop after remediation (prevents unreviewed changes)
+- **v5.25.1** - GSD-inspired enhancements: Wiring verification patterns, hypothesis quality criteria, cognitive biases table
+- **v5.25.0** - Critical orchestration fixes: Plan propagation, results collection, skill hierarchy, validation + README redesign
+- **v5.24.0** - Research Documentation Persistence: THREE-PHASE research pattern
+- **v5.23.0** - Plan-Task Linkage: metadata.planFile for context recovery (legacy; deprecated in v6.0.0)
+- **v5.22.0** - Stub Detection Patterns: GSD-inspired stub detection
+- **v5.21.0** - Task-Based Orchestration: TaskCreate, TaskUpdate, TaskList integration
+- **v5.20.0** - Goal-Backward Lens: Verification enhancements
+- **v5.19.0** - OWASP Reference + Minimal Diffs + ADR patterns
+- **v5.18.0** - Two-Phase github-research
+- **v5.13.1** - Bulletproof chain enforcement
+- **v5.13.0** - Parallel agent execution
+- **v5.12.1** - Fixed orphan skills
+- **v5.12.0** - Pre-publish audit
+- **v5.11.0** - Workflow chain enforcement
+- **v5.10.6** - Foolproof Router with decision tree
+- **v5.10.5** - Complete Permission-Free Audit
+- **v5.10.4** - True Permission-Free Memory
+- **v5.10.3** - Fixed invalid agent color
+- **v5.10.2** - Permission-Free Memory
+- **v5.10.1** - Router Supremacy
+- **v5.10.0** - Anthropic Claude 4.x alignment
+- **v5.9.1** - Plan→Build connection
+- **v5.9.0** - Two-step save pattern
+- **v5.8.1** - Router bypass prevention
+- **v5.7.0** - Fixed agent keyword conflicts
+- **v5.6.0** - Fixed agent tool misconfigurations
+- **v5.5.0** - Fixed skill keyword conflicts
+- **v5.4.0** - Router AUTO-EXECUTE
+- **v5.3.0** - Confidence scoring, silent-failure-hunter
+
+</details>
 
 ---
 
-## License
+## Files Structure
 
-MIT License
+```
+plugins/cc10x/
+├── agents/
+│   ├── component-builder.md
+│   ├── bug-investigator.md
+│   ├── code-reviewer.md
+│   ├── integration-verifier.md
+│   ├── planner.md
+│   └── silent-failure-hunter.md
+│
+└── skills/
+    ├── cc10x-router/SKILL.md
+    ├── session-memory/SKILL.md
+    ├── test-driven-development/SKILL.md
+    ├── code-generation/SKILL.md
+    ├── debugging-patterns/SKILL.md
+    ├── code-review-patterns/SKILL.md
+    ├── planning-patterns/SKILL.md
+    ├── brainstorming/SKILL.md
+    ├── architecture-patterns/SKILL.md
+    ├── frontend-patterns/SKILL.md
+    ├── github-research/SKILL.md
+    └── verification-before-completion/SKILL.md
+```
 
 ---
 
@@ -521,4 +515,13 @@ MIT License
 
 ---
 
-_cc10x v5.13.1 | The Perfect Claude Code Workflow System_
+## License
+
+MIT License
+
+---
+
+<p align="center">
+  <strong>cc10x v6.0.19</strong><br>
+  <em>The Intelligent Orchestrator for Claude Code</em>
+</p>
