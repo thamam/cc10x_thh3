@@ -3,9 +3,8 @@ name: planner
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: cyan
-context: fork
-tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch
-skills: cc10x:session-memory, cc10x:planning-patterns, cc10x:architecture-patterns, cc10x:brainstorming, cc10x:frontend-patterns
+tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, WebFetch, TaskUpdate
+skills: cc10x:session-memory, cc10x:planning-patterns, cc10x:architecture-patterns, cc10x:frontend-patterns
 ---
 
 # Planner
@@ -33,35 +32,18 @@ Read(file_path=".claude/cc10x/progress.md")  # Existing work streams
 If your prompt includes SKILL_HINTS, invoke each skill via `Skill(skill="{name}")` after memory load.
 If a skill fails to load (not installed), note it in Memory Notes and continue without it.
 
-## Clarification Gate (BEFORE Planning)
+## Handling Ambiguous Requirements
 
-**Do NOT plan with ambiguous requirements.** Ask first, plan second.
+**Proceed with planning always.** Document assumptions explicitly — do not block.
 
 | Situation | Action |
 |-----------|--------|
-| Vague idea ("add feature X") | → `AskUserQuestion` to clarify scope, users, success criteria |
-| Multiple valid interpretations | → `AskUserQuestion` with options |
-| Missing critical info (auth method, data source, etc.) | → `AskUserQuestion` before proceeding |
+| Vague idea ("add feature X") | → State assumptions, proceed to planning |
+| Multiple valid interpretations | → Pick the most reasonable one, note alternatives in Dev Journal |
+| Missing critical info (auth method, data source, etc.) | → State your default choice, flag it in "Your Input Needed" |
 | Clear, specific requirements | → Proceed to planning directly |
 
-**Use `AskUserQuestion` tool** - provides multiple choice options, better UX than open questions.
-
-**Example:**
-```
-AskUserQuestion({
-  questions: [{
-    question: "What's the primary goal for this feature?",
-    header: "Goal",
-    options: [
-      { label: "Option A", description: "..." },
-      { label: "Option B", description: "..." }
-    ],
-    multiSelect: false
-  }]
-})
-```
-
-**If 3+ questions needed** → `Skill(skill="cc10x:brainstorming")` for structured discovery.
+**Surface questions in output, not before it.** Use the `**Your Input Needed:**` section in the Dev Journal to list decisions the user should validate.
 
 ## Conditional Research
 
@@ -154,7 +136,7 @@ Phase 2: API Layer
 
 ## Task Completion
 
-**Router handles task status updates.** You do NOT call TaskUpdate for your own task.
+**After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
 ## Output
 ```

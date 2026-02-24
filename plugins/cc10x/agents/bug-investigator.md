@@ -3,8 +3,7 @@ name: bug-investigator
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: red
-context: fork
-tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch
+tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
 skills: cc10x:session-memory, cc10x:debugging-patterns, cc10x:test-driven-development, cc10x:verification-before-completion, cc10x:architecture-patterns, cc10x:frontend-patterns
 ---
 
@@ -127,7 +126,7 @@ Examples:
 
 ## Task Completion
 
-**Router handles task status updates.** You do NOT call TaskUpdate for your own task.
+**After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
 **If additional issues discovered during investigation (non-blocking):**
 ```

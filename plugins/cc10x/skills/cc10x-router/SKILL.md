@@ -189,7 +189,7 @@ TaskUpdate({ taskId: verifier_task_id, addBlockedBy: [reviewer_task_id, hunter_t
 # 3. Memory Update task (blocked by final agent - TASK-ENFORCED)
 TaskCreate({
   subject: "CC10X Memory Update: Persist workflow learnings",
-  description: "REQUIRED: Collect Memory Notes from agent outputs and persist to memory files.\n\n**Instructions:**\n1. Find all '### Memory Notes' sections from completed agents\n2. Persist learnings to .claude/cc10x/activeContext.md ## Learnings\n3. Persist patterns to .claude/cc10x/patterns.md ## Common Gotchas\n4. Persist verification to .claude/cc10x/progress.md ## Verification\n\n**Pattern:**\nRead(file_path=\".claude/cc10x/activeContext.md\")\nEdit(old_string=\"## Learnings\", new_string=\"## Learnings\\n- [from agent]: {insight}\")\nRead(file_path=\".claude/cc10x/activeContext.md\")  # Verify\n\nRepeat for patterns.md and progress.md.",
+  description: "REQUIRED: Collect Memory Notes from agent outputs and persist to memory files.\n\n**Instructions:**\n1. Find all '### Memory Notes' sections from completed agents\n2. Persist learnings to .claude/cc10x/activeContext.md ## Learnings\n3. Persist patterns to .claude/cc10x/patterns.md ## Common Gotchas\n4. Persist verification to .claude/cc10x/progress.md ## Verification\n\n**Pattern:**\nRead(file_path=\".claude/cc10x/activeContext.md\")\nEdit(old_string=\"## Learnings\", new_string=\"## Learnings\\n- [from agent]: {insight}\")\nRead(file_path=\".claude/cc10x/activeContext.md\")  # Verify\n\nRepeat for patterns.md and progress.md.\n\n**Freshness (prevent bloat):**\n- activeContext.md ## Recent Changes: REPLACE existing entries with only this workflow's changes.\n- progress.md ## Tasks: REPLACE existing entries with only this workflow's task items.\n- patterns.md: Before adding to ## Common Gotchas, scan for an existing entry about the same file or error. If found, update it in-place instead of adding a duplicate.",
   activeForm: "Persisting workflow learnings"
 })
 # Returns memory_task_id
@@ -212,7 +212,7 @@ TaskUpdate({ taskId: verifier_task_id, addBlockedBy: [reviewer_task_id] })
 # Memory Update task (blocked by final agent - TASK-ENFORCED)
 TaskCreate({
   subject: "CC10X Memory Update: Persist debug learnings",
-  description: "REQUIRED: Collect Memory Notes from agent outputs and persist to memory files.\n\nFocus on:\n- Root cause for patterns.md ## Common Gotchas\n- Debug attempt history for activeContext.md\n- Verification evidence for progress.md\n\n**Use Read-Edit-Read pattern for each file.**",
+  description: "REQUIRED: Collect Memory Notes from agent outputs and persist to memory files.\n\nFocus on:\n- Root cause for patterns.md ## Common Gotchas\n- Debug attempt history for activeContext.md\n- Verification evidence for progress.md\n\n**Use Read-Edit-Read pattern for each file.**\n\n**Freshness (prevent bloat):**\n- activeContext.md ## Recent Changes: REPLACE existing entries with only this workflow's changes.\n- progress.md ## Tasks: REPLACE existing entries with only this workflow's task items.\n- patterns.md: Before adding to ## Common Gotchas, scan for an existing entry about the same file or error. If found, update it in-place instead of adding a duplicate.",
   activeForm: "Persisting debug learnings"
 })
 # Returns memory_task_id
@@ -229,7 +229,7 @@ TaskCreate({ subject: "CC10X code-reviewer: Review {target}", description: "Comp
 # Memory Update task (blocked by final agent - TASK-ENFORCED)
 TaskCreate({
   subject: "CC10X Memory Update: Persist review learnings",
-  description: "REQUIRED: Collect Memory Notes from code-reviewer output and persist to memory files.\n\nFocus on:\n- Patterns discovered for patterns.md\n- Review verdict for progress.md\n\n**Use Read-Edit-Read pattern for each file.**",
+  description: "REQUIRED: Collect Memory Notes from code-reviewer output and persist to memory files.\n\nFocus on:\n- Patterns discovered for patterns.md\n- Review verdict for progress.md\n\n**Use Read-Edit-Read pattern for each file.**\n\n**Freshness (prevent bloat):**\n- progress.md ## Tasks: REPLACE existing entries with only this workflow's task items.\n- patterns.md: Before adding to ## Common Gotchas, scan for an existing entry about the same file or error. If found, update it in-place instead of adding a duplicate.",
   activeForm: "Persisting review learnings"
 })
 # Returns memory_task_id
@@ -246,7 +246,7 @@ TaskCreate({ subject: "CC10X planner: Create plan for {feature}", description: "
 # Memory Update task (blocked by final agent - TASK-ENFORCED)
 TaskCreate({
   subject: "CC10X Memory Update: Index plan in memory",
-  description: "REQUIRED: Update memory files with plan reference.\n\nFocus on:\n- Add plan file to activeContext.md ## References\n- Update progress.md with plan status\n\n**Use Read-Edit-Read pattern for each file.**",
+  description: "REQUIRED: Update memory files with plan reference.\n\nFocus on:\n- Add plan file to activeContext.md ## References\n- Update progress.md with plan status\n\n**Use Read-Edit-Read pattern for each file.**\n\n**Freshness (prevent bloat):**\n- progress.md ## Tasks: REPLACE existing entries with only this workflow's task items.",
   activeForm: "Indexing plan in memory"
 })
 # Returns memory_task_id
@@ -337,15 +337,18 @@ TaskUpdate({ taskId: memory_task_id, addBlockedBy: [planner_task_id] })
 > The planner agent handles autonomous plan creation and writes files directly — it does not need human approval gating.
 
 1. Load memory
-2. **If github-research detected (external tech OR explicit request):**
+2. **Clarification (if request is vague or ambiguous):**
+   → `Skill(skill="cc10x:brainstorming")` — runs in main context, `AskUserQuestion` available here
+   → Collect answers, pass clarified requirements to planner in step 4
+3. **If github-research detected (external tech OR explicit request):**
    - Execute research FIRST using octocode tools directly (NOT as hint)
    - Use: `mcp__octocode__packageSearch`, `mcp__octocode__githubSearchCode`, etc.
    - **PERSIST research** → Save to `docs/research/YYYY-MM-DD-<topic>-research.md`
    - **Update memory** → Add to activeContext.md References section
    - Summarize findings before invoking planner
-3. **Create task hierarchy** (see Task-Based Orchestration above)
-4. **Start chain execution** (pass research results + file path in prompt if step 2 was executed)
-5. Update memory → Reference saved plan when task completed
+4. **Create task hierarchy** (see Task-Based Orchestration above)
+5. **Start chain execution** (pass clarified requirements + research results + file path in prompt if step 3 was executed)
+6. Update memory → Reference saved plan when task completed
 
 **THREE-PHASE for External Research (MANDATORY):**
 ```
@@ -399,7 +402,7 @@ Execute the task and include ‘Task {TASK_ID}: COMPLETED’ in your output when
 ")
 ```
 
-**TASK ID is REQUIRED in prompt.** Router updates task status after agent returns (agents do NOT call TaskUpdate for their own task).
+**TASK ID is REQUIRED in prompt.** Agents call TaskUpdate(completed) for their own task after final output. Router verifies via TaskList().
 **SKILL_HINTS:** If router passes skills in SKILL_HINTS, agent MUST call `Skill(skill="{skill-name}")` after loading memory. This includes both cc10x skills (github-research) and complementary skills (react-best-practices, mongodb-agent-skills, etc.).
 
 **Post-Agent Validation (After agent completes):**
@@ -577,9 +580,10 @@ skills: cc10x:session-memory, cc10x:code-generation, cc10x:frontend-patterns
      ")
 
 3. After agent completes:
-   - Router updates task: TaskUpdate({ taskId: runnable_task_id, status: "completed" })
+   - Agent self-reports: TaskUpdate({ taskId, status: "completed" }) — already done by agent
    - Router validates output (see Post-Agent Validation)
-   - Router calls TaskList() to find next available tasks
+   - Router calls TaskList() to verify task is completed; if still in_progress, router calls TaskUpdate({ taskId: runnable_task_id, status: "completed" }) as fallback
+   - Router finds next available tasks from TaskList()
 
 4. Determine next:
    - Find tasks where ALL blockedBy tasks are "completed"
