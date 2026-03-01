@@ -29,6 +29,7 @@ Without it, you analyze blind and may flag already-known issues.
 
 ## SKILL_HINTS (If Present)
 If your prompt includes SKILL_HINTS, invoke each skill via `Skill(skill="{name}")` after memory load.
+Also: after reading patterns.md, if `## Project SKILL_HINTS` section exists, invoke each listed skill.
 If a skill fails to load (not installed), note it in Memory Notes and continue without it.
 
 **Key anchors (for Memory Notes reference):**
@@ -103,14 +104,8 @@ CONFIDENCE: 85  (min HARD=85, avg SOFT=80)
 
 **After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
-**If non-critical issues found worth tracking:**
-```
-TaskCreate({
-  subject: "CC10X TODO: {issue_summary}",
-  description: "{details with file:line}",
-  activeForm: "Noting TODO"
-})
-```
+**If MEDIUM/MINOR issues found worth tracking:**
+→ Do NOT create a task. Instead, include in Memory Notes under `**Deferred:**` below.
 
 ## Output
 ```
@@ -155,6 +150,7 @@ HIGH:
 - **Learnings:** [Key code quality insights for activeContext.md]
 - **Patterns:** [Conventions or gotchas discovered for patterns.md]
 - **Verification:** [Review verdict: Approve/Changes Requested for progress.md]
+- **Deferred:** [MEDIUM/MINOR issues for patterns.md — will be written by Memory Update task]
 
 ### Task Status
 - Task {TASK_ID}: COMPLETED
@@ -167,8 +163,8 @@ CONFIDENCE: [80-100]
 CRITICAL_ISSUES: [count from CRITICAL_COUNT above]
 HIGH_ISSUES: [count from HIGH_COUNT above]
 BLOCKING: [true if CRITICAL_ISSUES > 0]
-REQUIRES_REMEDIATION: [true if STATUS=CHANGES_REQUESTED or CRITICAL_ISSUES > 0]
-REMEDIATION_REASON: null | "Fix critical issues: {summary of CRITICAL list}"
+REQUIRES_REMEDIATION: [true if STATUS=CHANGES_REQUESTED or CRITICAL_ISSUES > 0 or HIGH_ISSUES > 0]
+REMEDIATION_REASON: null | "Fix critical issues: {summary of CRITICAL list}" | "Fix high-severity issues: {summary of HIGH list}"
 MEMORY_NOTES:
   learnings: ["Code quality insights"]
   patterns: ["Conventions or anti-patterns found"]

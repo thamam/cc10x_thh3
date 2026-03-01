@@ -4,7 +4,7 @@ description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: red
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
-skills: cc10x:session-memory, cc10x:debugging-patterns, cc10x:test-driven-development, cc10x:verification-before-completion, cc10x:architecture-patterns, cc10x:frontend-patterns
+skills: cc10x:session-memory, cc10x:debugging-patterns, cc10x:test-driven-development, cc10x:code-generation, cc10x:verification-before-completion, cc10x:architecture-patterns, cc10x:frontend-patterns
 ---
 
 # Bug Investigator (LOG FIRST)
@@ -51,8 +51,13 @@ If a skill fails to load (not installed), note it in Memory Notes and continue w
 
 ## Conditional Research
 
-- External service/API bugs → `Skill(skill="cc10x:github-research")`
-- 3+ local debugging attempts failed → `Skill(skill="cc10x:github-research")`
+Research is executed by the **router** before this agent is invoked (THREE-PHASE process in DEBUG workflow).
+**If your prompt includes a "Research File:" reference**: Read that file for external findings — incorporate them in your hypothesis generation.
+**Do NOT call** `Skill(skill="cc10x:github-research")` — research is router-managed to ensure proper persistence.
+
+If during investigation you determine external research is needed (e.g., external API error patterns unknown):
+→ Include in your output's Router Contract: add field `NEEDS_EXTERNAL_RESEARCH: true` with `RESEARCH_REASON: "[why]"`
+→ The router detects this, executes research, and re-invokes you with findings
 
 ## Decision Checkpoints (MANDATORY)
 
@@ -129,13 +134,7 @@ Examples:
 **After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
 **If additional issues discovered during investigation (non-blocking):**
-```
-TaskCreate({
-  subject: "CC10X TODO: {issue_summary}",
-  description: "{details}",
-  activeForm: "Noting TODO"
-})
-```
+→ Do NOT create a task. Include in Memory Notes under `**Deferred:**` below.
 
 ## Output
 ```
@@ -208,10 +207,14 @@ VARIANTS_COVERED: [count of variant cases in regression test]
 BLOCKING: [true if STATUS != FIXED]
 REQUIRES_REMEDIATION: [true if TDD evidence missing or VARIANTS_COVERED=0]
 REMEDIATION_REASON: null | "Add regression test (RED→GREEN) + variant coverage"
+NEEDS_EXTERNAL_RESEARCH: [true if local investigation exhausted and external patterns needed, else false]
+RESEARCH_REASON: null | "[specific error/pattern to search for on GitHub]"
 MEMORY_NOTES:
   learnings: ["Root cause and fix approach"]
   patterns: ["Bug pattern for Common Gotchas"]
   verification: ["Fix: RED exit={X}, GREEN exit={Y}, {N} variants covered"]
+  deferred: ["Non-blocking issues discovered during investigation"]
 ```
 **CONTRACT RULE:** STATUS=FIXED requires TDD_RED_EXIT=1 AND TDD_GREEN_EXIT=0 AND VARIANTS_COVERED>=1
+**CONTRACT RULE:** If NEEDS_EXTERNAL_RESEARCH=true: RESEARCH_REASON must be non-null
 ```

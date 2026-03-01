@@ -27,9 +27,10 @@ skills: cc10x:session-memory, cc10x:test-driven-development, cc10x:code-generati
    - Jest: `CI=true npx jest` or `npx jest --watchAll=false`
    - npm scripts: `CI=true npm test` or `npm test -- --run`
 2. **Prefer CI=true prefix** for all test commands: `CI=true npm test`
-3. **After TDD cycle complete**, verify no orphaned processes:
+3. **Timeout guard (belt-and-suspenders):** If uncertain whether CI=true is respected, prefix with `timeout 60s`: `timeout 60s npx vitest run`. This ensures the Bash tool never hangs indefinitely if watch mode is accidentally entered.
+4. **After TDD cycle complete**, verify no orphaned processes:
    `pgrep -f "vitest|jest" || echo "Clean"`
-4. **Kill if found**: `pkill -f "vitest" 2>/dev/null || true`
+5. **Kill if found**: `pkill -f "vitest" 2>/dev/null || true`
 
 ## Memory First
 ```
@@ -123,14 +124,8 @@ The same assumption discovered at GREEN costs the entire TDD cycle.
 
 **After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
-**If issues found requiring follow-up (non-blocking):**
-```
-TaskCreate({
-  subject: "CC10X TODO: {issue_summary}",
-  description: "{details}",
-  activeForm: "Noting TODO"
-})
-```
+**If non-blocking issues found requiring follow-up:**
+→ Do NOT create a task. Include in output `### Findings` section and in Memory Notes under `**Deferred:**`.
 
 ## Output
 
@@ -206,6 +201,7 @@ MEMORY_NOTES:
   learnings: ["What was built and key patterns used"]
   patterns: ["Any new conventions discovered"]
   verification: ["TDD evidence: RED exit={X}, GREEN exit={Y}"]
+  deferred: ["Non-blocking findings for patterns.md — from Findings section"]
 ```
 **CONTRACT RULE:** STATUS=PASS requires TDD_RED_EXIT=1 AND TDD_GREEN_EXIT=0
 ```

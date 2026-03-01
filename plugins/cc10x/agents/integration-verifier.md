@@ -4,7 +4,7 @@ description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: yellow
 tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
-skills: cc10x:architecture-patterns, cc10x:debugging-patterns, cc10x:verification-before-completion, cc10x:frontend-patterns
+skills: cc10x:architecture-patterns, cc10x:verification-before-completion, cc10x:frontend-patterns
 ---
 
 # Integration Verifier (E2E)
@@ -40,6 +40,7 @@ Without it, you may re-verify already-passed scenarios or miss known issues.
 
 ## SKILL_HINTS (If Present)
 If your prompt includes SKILL_HINTS, invoke each skill via `Skill(skill="{name}")` after memory load.
+Also: after reading patterns.md, if `## Project SKILL_HINTS` section exists, invoke each listed skill.
 If a skill fails to load (not installed), note it in Memory Notes and continue without it.
 
 **Key anchors (for Memory Notes reference):**
@@ -71,15 +72,6 @@ If a skill fails to load (not installed), note it in Memory Notes and continue w
 ## Task Completion
 
 **After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
-
-**If verification fails and fixes needed (Option A chosen):**
-```
-TaskCreate({
-  subject: "CC10X TODO: Fix verification failure - {issue_summary}",
-  description: "{details with scenario and error}",
-  activeForm: "Noting TODO"
-})
-```
 
 ## Output
 ```
@@ -128,10 +120,9 @@ EVIDENCE:
 
 **When verification fails, choose ONE:**
 
-**Option A: Create Fix Task**
+**Option A (default): Set `CHOSEN_OPTION: A` in your Router Contract**
 - Blockers are fixable without architectural changes
-- Create fix task with TaskCreate()
-- Link to this verification task
+- Set `CHOSEN_OPTION: A` in your Router Contract — the router's rule 1a will automatically create the REM-FIX task from your REMEDIATION_REASON. Do NOT create fix tasks manually.
 
 **Option B: Revert Branch (if using feature branch)**
 - Verification reveals fundamental design issue
@@ -144,6 +135,7 @@ EVIDENCE:
 - Get user approval before proceeding
 
 **Decision:** [Option chosen]
+**For Router Contract:** Set CHOSEN_OPTION to A, B, or C matching your Decision above.
 **Rationale:** [Why this choice]
 
 ### Findings
@@ -174,10 +166,11 @@ BLOCKERS: [count from BLOCKERS_COUNT]
 BLOCKING: [true if STATUS=FAIL]
 REQUIRES_REMEDIATION: [true if BLOCKERS > 0]
 REMEDIATION_REASON: null | "Fix E2E failures: {summary of BLOCKERS list}"
+CHOSEN_OPTION: A | B | C  # A=create fix task (default), B=recommend branch revert, C=document known limitation and continue
 MEMORY_NOTES:
   learnings: ["Integration insights"]
   patterns: ["Edge cases discovered"]
   verification: ["E2E: {SCENARIOS_PASSED}/{SCENARIOS_TOTAL} passed"]
 ```
-**CONTRACT RULE:** STATUS=PASS requires BLOCKERS=0 and SCENARIOS_PASSED=SCENARIOS_TOTAL
+**CONTRACT RULE:** STATUS=PASS requires BLOCKERS=0 and SCENARIOS_PASSED=SCENARIOS_TOTAL. STATUS=FAIL requires CHOSEN_OPTION to be set (A, B, or C).
 ```

@@ -35,6 +35,7 @@ Without it, you may flag issues that are already documented.
 
 ## SKILL_HINTS (If Present)
 If your prompt includes SKILL_HINTS, invoke each skill via `Skill(skill="{name}")` after memory load.
+Also: after reading patterns.md, if `## Project SKILL_HINTS` section exists, invoke each listed skill.
 If a skill fails to load (not installed), note it in Memory Notes and continue without it.
 
 **Key anchors (for Memory Notes reference):**
@@ -87,14 +88,8 @@ If a skill fails to load (not installed), note it in Memory Notes and continue w
 
 **After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
-**If HIGH or MEDIUM issues found (not critical, non-blocking):**
-```
-TaskCreate({
-  subject: "CC10X TODO: {issue_summary}",
-  description: "{details with file:line}",
-  activeForm: "Noting TODO"
-})
-```
+**If MEDIUM issues found (not critical, non-blocking):**
+→ Do NOT create a task. Include in Memory Notes under `**Deferred:**` below.
 
 **If CRITICAL issues found but cannot be fixed (unusual):**
 - Document why in output
@@ -145,6 +140,7 @@ HIGH:
 - **Learnings:** [Error handling insights for activeContext.md]
 - **Patterns:** [Silent failure patterns for patterns.md ## Common Gotchas]
 - **Verification:** [Hunt result: X critical / Y high issues found for progress.md]
+- **Deferred:** [MEDIUM issues for patterns.md — will be written by Memory Update task]
 
 ### Task Status
 - Task {TASK_ID}: COMPLETED
@@ -156,12 +152,12 @@ STATUS: CLEAN | ISSUES_FOUND
 CRITICAL_ISSUES: [count from CRITICAL_COUNT above]
 HIGH_ISSUES: [count of HIGH items]
 BLOCKING: [true if CRITICAL_ISSUES > 0]
-REQUIRES_REMEDIATION: [true if CRITICAL_ISSUES > 0]
-REMEDIATION_REASON: null | "Fix silent failures: {summary of CRITICAL list}"
+REQUIRES_REMEDIATION: [true if CRITICAL_ISSUES > 0 or HIGH_ISSUES > 0]
+REMEDIATION_REASON: null | "Fix silent failures: {summary of CRITICAL list}" | "Fix high-severity failures: {summary of HIGH list}"
 MEMORY_NOTES:
   learnings: ["Error handling insights"]
   patterns: ["Silent failure patterns found"]
   verification: ["Hunt: {CRITICAL_ISSUES} critical, {HIGH_ISSUES} high"]
 ```
-**CONTRACT RULE:** STATUS=CLEAN requires CRITICAL_ISSUES=0
+**CONTRACT RULE:** STATUS=CLEAN requires CRITICAL_ISSUES=0 and HIGH_ISSUES=0
 ```
