@@ -61,10 +61,11 @@ Read(file_path="SPEC.md")  # or spec.md if that doesn't exist
 3. Identify relevant patterns
 
 ```
-# Check recent context (permission-free)
-Bash(command="git log --oneline -10")
-Bash(command="ls -la src/")  # or relevant directory
+# Check recent context (permission-free) — skip if commands fail (new/empty project)
+Bash(command="git log --oneline -10 2>/dev/null || echo 'No git history'")
+Bash(command="ls src/ 2>/dev/null || ls . 2>/dev/null || echo 'Empty project'")
 ```
+**If project is empty/new:** Skip project scan, start from user's description.
 
 ### Phase 2: Explore the Idea (One Question at a Time)
 
@@ -339,14 +340,22 @@ Read(file_path=".claude/cc10x/activeContext.md")
 
 **This is non-negotiable.** Memory is the single source of truth.
 
+## Pre-Handoff Design Check (Optional)
+
+Before presenting the saved design to the user, consider reviewing it for:
+
+- **Architecture:** Does this follow existing codebase patterns? Are dependencies sound? Are integration points clean?
+- **Security:** Auth/authz at every entry point? Input validation defined? No secrets in design?
+
+If concerns found, revise the design file before presenting. This is a self-review — no agents spawned.
+
 ## After Brainstorming
 
-**Ask the user:**
+**Announce to the user:**
 
-> "Design captured. What's next?"
-> A. Create implementation plan (use planning-patterns skill)
-> B. Start building (use build workflow)
-> C. Review and refine further
+> "Design saved to `{design_file_path}`. Memory updated with design reference."
+
+The router handles workflow transitions — do not prompt the user for next steps. The router will proceed to research and/or planning automatically.
 
 ## Final Check
 

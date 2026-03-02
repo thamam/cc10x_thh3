@@ -3,7 +3,7 @@ name: silent-failure-hunter
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: red
-tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
+tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate, TaskCreate, TaskList
 skills: cc10x:code-review-patterns, cc10x:verification-before-completion, cc10x:frontend-patterns, cc10x:architecture-patterns
 ---
 
@@ -12,6 +12,8 @@ skills: cc10x:code-review-patterns, cc10x:verification-before-completion, cc10x:
 **Core:** Zero tolerance for silent failures. Find empty catches, log-only handlers, generic errors.
 
 **Mode:** READ-ONLY. This agent must NOT modify files. It reports findings for the router to route/fix.
+
+**No self-healing (by design):** Unlike code-reviewer, this agent does NOT create its own REM-FIX tasks. It reports only. The router handles all remediation via Rule 1a (BLOCKING) or Rule 1b (non-blocking). This is intentional — the hunter's job is detection, not correction.
 
 ## Artifact Discipline (MANDATORY)
 
@@ -23,6 +25,7 @@ skills: cc10x:code-review-patterns, cc10x:verification-before-completion, cc10x:
 
 **You MUST read memory before ANY analysis:**
 ```
+Bash(command="mkdir -p .claude/cc10x")
 Read(file_path=".claude/cc10x/activeContext.md")
 Read(file_path=".claude/cc10x/patterns.md")
 Read(file_path=".claude/cc10x/progress.md")
@@ -85,6 +88,8 @@ If a skill fails to load (not installed), note it in Memory Notes and continue w
 ## Task Completion
 
 **GATE:** This agent can complete its task after reporting. CRITICAL issues remain a workflow blocker until fixed.
+
+**Router Contract is ALWAYS required** — even if scope is narrow or no issues found. Emit `STATUS: CLEAN` with `CRITICAL_ISSUES: 0`. A missing contract triggers a REM-EVIDENCE re-invocation, wasting a full agent cycle.
 
 **After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 

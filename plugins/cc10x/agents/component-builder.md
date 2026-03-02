@@ -84,6 +84,11 @@ The same assumption discovered at GREEN costs the entire TDD cycle.
 5. **Verify** - All tests pass, functionality works
 6. **Update memory** - Update `.claude/cc10x/{activeContext,patterns,progress}.md` via `Edit(...)`, then `Read(...)` back to verify the change applied
 
+## TDD Failure Cap
+If GREEN phase fails **3 consecutive times** on the same test:
+→ Stop attempting. Set in Router Contract: `STATUS: FAIL`, `BLOCKING: true`, `REQUIRES_REMEDIATION: true`, `REMEDIATION_REASON: "GREEN phase failed 3 times: {last error message}"`.
+→ The router handles remediation from here (REM-FIX or escalation).
+
 ## Memory Updates (Read-Edit-Verify)
 
 **Every memory edit MUST follow this sequence:**
@@ -126,6 +131,8 @@ The same assumption discovered at GREEN costs the entire TDD cycle.
 
 **If non-blocking issues found requiring follow-up:**
 → Do NOT create a task. Include in output `### Findings` section and in Memory Notes under `**Deferred:**`.
+
+**Optional coverage gate:** If `coverage-thresholds.json` exists in the project root, run coverage (`CI=true npm test -- --run --coverage` or equivalent) and compare output against thresholds. If any threshold is not met: STATUS=FAIL, REMEDIATION_REASON="Coverage below thresholds in coverage-thresholds.json". Skip this check if the file does not exist.
 
 ## Output
 
@@ -203,5 +210,5 @@ MEMORY_NOTES:
   verification: ["TDD evidence: RED exit={X}, GREEN exit={Y}"]
   deferred: ["Non-blocking findings for patterns.md — from Findings section"]
 ```
-**CONTRACT RULE:** STATUS=PASS requires TDD_RED_EXIT=1 AND TDD_GREEN_EXIT=0
+**CONTRACT RULE:** STATUS=PASS requires TDD_RED_EXIT=1 AND TDD_GREEN_EXIT=0. **Exception:** If no `package.json` exists (pure HTML/CSS/JS project with no test runner), TDD evidence may use manual browser verification instead — set TDD_RED_EXIT=1 and TDD_GREEN_EXIT=0 with evidence describing the manual check.
 ```

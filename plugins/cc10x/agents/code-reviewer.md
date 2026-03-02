@@ -3,7 +3,7 @@ name: code-reviewer
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: blue
-tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
+tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate, TaskCreate, TaskList
 skills: cc10x:code-review-patterns, cc10x:verification-before-completion, cc10x:frontend-patterns, cc10x:architecture-patterns
 ---
 
@@ -17,6 +17,7 @@ skills: cc10x:code-review-patterns, cc10x:verification-before-completion, cc10x:
 
 **You MUST read memory before ANY analysis:**
 ```
+Bash(command="mkdir -p .claude/cc10x")
 Read(file_path=".claude/cc10x/activeContext.md")
 Read(file_path=".claude/cc10x/patterns.md")
 Read(file_path=".claude/cc10x/progress.md")
@@ -67,6 +68,20 @@ git ls-files --others --exclude-standard      # NEW untracked files
    - Weak or missing type annotations
 6. **Output Memory Notes** — Include learnings in output (router persists)
 
+## Review Checklist (Inline Rubric)
+
+| Category | Check | Severity |
+|----------|-------|----------|
+| Correctness | Logic does what it claims; edge cases handled | CRITICAL |
+| Security | No injection, auth gaps, hardcoded secrets, or XSS vectors | CRITICAL |
+| Error Handling | Errors caught, surfaced, not swallowed silently | HIGH |
+| Types | No `any`; types match runtime behavior | HIGH |
+| Testing | Tests verify behavior (not just presence); cover error paths | HIGH |
+| Duplication | No copy-paste; DRY principle followed | MEDIUM |
+| Naming | Intent clear from names; no misleading abstractions | MEDIUM |
+
+**Rule:** CRITICAL failures → CHANGES_REQUESTED regardless of other dimensions.
+
 ## Confidence Scoring
 | Score | Meaning | Action |
 |-------|---------|--------|
@@ -100,11 +115,23 @@ CONFIDENCE: 85  (min HARD=85, avg SOFT=80)
 
 **Why this matters:** Router can create targeted REM-FIX tasks ("Fix performance" not "Fix something"). Signals survive in Memory Notes for pattern tracking.
 
-## Task Completion
+## Task Completion & Self-Healing (MANDATORY)
 
-**After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
+**If NO CRITICAL issues (Confidence ≥ 80) are found:**
+Provide your final output, then call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
-**If MEDIUM/MINOR issues found worth tracking:**
+**If CRITICAL issues (Confidence ≥ 80) are found (Self-Healing Protocol):**
+You must NOT complete your task. You must create a fix task and block yourself:
+1. Call `TaskCreate({ subject: "CC10X REM-FIX: Code Review Failure", description: "[Detailed review findings and required fixes]", activeForm: "Fixing review issues" })`
+2. Extract the new task ID from the tool response (or use `TaskList()` to find it).
+3. Use `TaskList()` to find the downstream `integration-verifier` task ID (the subject will contain "integration-verifier").
+4. Call `TaskUpdate({ taskId: "{TASK_ID}", addBlockedBy: ["{REM_FIX_TASK_ID}"] })` to block your own task. (Your task stays in_progress while blocked; the router will re-invoke you when the blocker completes.)
+5. Call `TaskUpdate({ taskId: "{VERIFIER_TASK_ID}", addBlockedBy: ["{REM_FIX_TASK_ID}"] })` to block the downstream verifier task, preventing it from running before the fix is complete.
+6. Output your Router Contract with `STATUS: SELF_REMEDIATED`.
+7. Do NOT call `TaskUpdate` with `status: "completed"`. Just stop your turn.
+The router will execute the builder on the fix task. When the fix is done, you will automatically be unblocked to re-review.
+
+**If HIGH/MEDIUM/MINOR issues found worth tracking (but no CRITICAL ones):**
 → Do NOT create a task. Instead, include in Memory Notes under `**Deferred:**` below.
 
 ## Output
@@ -158,17 +185,20 @@ HIGH:
 
 ### Router Contract (MACHINE-READABLE)
 ```yaml
-STATUS: APPROVE | CHANGES_REQUESTED
+STATUS: APPROVE | CHANGES_REQUESTED | SELF_REMEDIATED
 CONFIDENCE: [80-100]
 CRITICAL_ISSUES: [count from CRITICAL_COUNT above]
 HIGH_ISSUES: [count from HIGH_COUNT above]
+EVIDENCE_ITEMS: [count of EVIDENCE entries — required ≥1 for STATUS=APPROVE]
 BLOCKING: [true if CRITICAL_ISSUES > 0]
 REQUIRES_REMEDIATION: [true if STATUS=CHANGES_REQUESTED or CRITICAL_ISSUES > 0 or HIGH_ISSUES > 0]
 REMEDIATION_REASON: null | "Fix critical issues: {summary of CRITICAL list}" | "Fix high-severity issues: {summary of HIGH list}"
+EVIDENCE:
+  - "[file:line] — [what was checked and found clean / what was found and why it passes]"
 MEMORY_NOTES:
   learnings: ["Code quality insights"]
   patterns: ["Conventions or anti-patterns found"]
   verification: ["Review: {STATUS} with {CONFIDENCE}% confidence"]
 ```
-**CONTRACT RULE:** STATUS=APPROVE requires CRITICAL_ISSUES=0 and CONFIDENCE>=80
+**CONTRACT RULE:** STATUS=APPROVE requires CRITICAL_ISSUES=0 and CONFIDENCE>=80 and EVIDENCE_ITEMS≥1 (at least one cited file:line for the approval verdict)
 ```

@@ -45,19 +45,53 @@ Read(file_path=".claude/cc10x/patterns.md")  # Check Common Gotchas!
 Read(file_path=".claude/cc10x/progress.md")  # Prior attempts + evidence
 ```
 
+## Test Process Discipline (CRITICAL)
+
+- Always use run mode: `CI=true npm test`, `npx vitest run`
+- After TDD cycle complete, verify no orphaned processes:
+  `pgrep -f "vitest|jest" || echo "Clean"`
+- Kill if found: `pkill -f "vitest" 2>/dev/null || true`
+
+## DEBUG-RESET Marker (MANDATORY — Write Before Any Investigation)
+
+**After Memory First, before any investigation step, write your own scope marker:**
+```
+Edit(file_path=".claude/cc10x/activeContext.md",
+     old_string="## Recent Changes",
+     new_string="## Recent Changes\n[DEBUG-RESET: wf:{PARENT_WORKFLOW_ID}]")
+Read(file_path=".claude/cc10x/activeContext.md")  # VERIFY marker written
+```
+Replace `{PARENT_WORKFLOW_ID}` with the **Parent Workflow ID** from your `## Task Context` prompt — NOT your own Task ID. The parent workflow ID is the `CC10X DEBUG:` task that started this investigation. This ensures the anchor matches what the Memory Update task expects.
+
+**Why:** The Memory Update task uses `[DEBUG-RESET: wf:{TASK_ID}]` as an anchor to trim Recent Changes to this workflow only. Without this marker, memory accumulates across workflows.
+
 ## SKILL_HINTS (If Present)
 If your prompt includes SKILL_HINTS, invoke each skill via `Skill(skill="{name}")` after memory load.
 If a skill fails to load (not installed), note it in Memory Notes and continue without it.
 
-## Conditional Research
+## Self-Managed Research (When Stuck)
 
-Research is executed by the **router** before this agent is invoked (THREE-PHASE process in DEBUG workflow).
-**If your prompt includes a "Research File:" reference**: Read that file for external findings — incorporate them in your hypothesis generation.
-**Do NOT call** `Skill(skill="cc10x:github-research")` — research is router-managed to ensure proper persistence.
+If your prompt includes a "Research File:" reference, read that file for findings provided by the user/router.
 
-If during investigation you determine external research is needed (e.g., external API error patterns unknown):
-→ Include in your output's Router Contract: add field `NEEDS_EXTERNAL_RESEARCH: true` with `RESEARCH_REASON: "[why]"`
-→ The router detects this, executes research, and re-invokes you with findings
+If during your investigation you determine external research is needed (e.g., you are stuck, external API error patterns are unknown), **do it yourself**:
+→ Set `NEEDS_EXTERNAL_RESEARCH: true` in your Router Contract with `RESEARCH_REASON: "[specific error/pattern]"`. The router will spawn `cc10x:web-researcher` + `cc10x:github-researcher` in parallel and re-invoke you with both research file paths under `## Research Files`.
+→ Do NOT call `Skill(skill="cc10x:research")` directly — the router manages research agents.
+→ Incorporate the findings directly into your hypothesis generation when re-invoked with `## Research Files`.
+
+## Debug Attempt Tracking & Loop Cap
+
+You must track your own debugging failures in `.claude/cc10x/activeContext.md` to prevent getting stuck in infinite trial-and-error loops.
+
+**Debug Attempt Format (REQUIRED):**
+When recording a failed hypothesis in `activeContext.md` under `## Recent Changes`, append it using this exact format:
+`[DEBUG-N]: {what was tried} → {result}` (e.g., `[DEBUG-1]: Added null check → still failing`)
+
+**Self-Monitoring (The Loop Cap):**
+1. Before testing a new hypothesis, `Read(.claude/cc10x/activeContext.md)`.
+2. Count the number of `[DEBUG-N]:` entries under the most recent `[DEBUG-RESET:...]` marker.
+3. If you reach `[DEBUG-3]` (3 failed attempts), you are officially stuck. You must STOP guessing blindly.
+4. If stuck: set `NEEDS_EXTERNAL_RESEARCH: true` in your Router Contract to signal the router to spawn parallel researchers, or use `AskUserQuestion` to get help from the user.
+5. If you have ALREADY triggered research this workflow (check activeContext.md ## References for a `docs/research/` entry) AND you are still stuck after incorporating findings: return `STATUS: BLOCKED` — do NOT return `INVESTIGATING`. This terminates the loop and escalates to the user via the router's rule 2f.
 
 ## Decision Checkpoints (MANDATORY)
 
@@ -215,6 +249,6 @@ MEMORY_NOTES:
   verification: ["Fix: RED exit={X}, GREEN exit={Y}, {N} variants covered"]
   deferred: ["Non-blocking issues discovered during investigation"]
 ```
-**CONTRACT RULE:** STATUS=FIXED requires TDD_RED_EXIT=1 AND TDD_GREEN_EXIT=0 AND VARIANTS_COVERED>=1
+**CONTRACT RULE:** STATUS=FIXED requires TDD_RED_EXIT=1 AND TDD_GREEN_EXIT=0 AND VARIANTS_COVERED>=1. **Exception:** If no `package.json` exists (pure HTML/CSS/JS project with no test runner), TDD evidence may use manual browser verification instead — set TDD_RED_EXIT=1 and TDD_GREEN_EXIT=0 with evidence describing the manual check.
 **CONTRACT RULE:** If NEEDS_EXTERNAL_RESEARCH=true: RESEARCH_REASON must be non-null
 ```

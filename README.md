@@ -8,12 +8,12 @@
 
 ### The Intelligent Orchestrator for Claude Code
 
-**Current version:** 6.0.33
+**Current version:** 7.2.0
 
 **Recommended: Create `~/.claude/CLAUDE.md` (global) so the router is always active across all projects.**
 
 <p align="center">
-  <strong>1 Router</strong> &nbsp;•&nbsp; <strong>6 Agents</strong> &nbsp;•&nbsp; <strong>12 Skills</strong> &nbsp;•&nbsp; <strong>4 Workflows</strong>
+  <strong>1 Router</strong> &nbsp;•&nbsp; <strong>8 Agents</strong> &nbsp;•&nbsp; <strong>12 Skills</strong> &nbsp;•&nbsp; <strong>4 Workflows</strong>
 </p>
 
 <p align="center">
@@ -321,7 +321,7 @@ MEMORY (.claude/cc10x/)
 
 ---
 
-## The 6 Agents
+## The 8 Agents
 
 | Agent | Purpose | Key Behavior |
 |-------|---------|--------------|
@@ -331,6 +331,8 @@ MEMORY (.claude/cc10x/)
 | **silent-failure-hunter** | Finds error gaps | Zero tolerance for empty catch blocks |
 | **integration-verifier** | E2E validation | Exit codes: PASS/FAIL with evidence |
 | **planner** | Creates plans | Saves to `docs/plans/` + updates memory |
+| **web-researcher** | Fetches web data via Bright Data + WebSearch | Saves findings to file |
+| **github-researcher** | Searches GitHub repos + packages via Octocode MCP | Saves findings to file |
 
 ---
 
@@ -350,7 +352,7 @@ Skills are **loaded automatically by agents**. You never invoke them directly.
 | **architecture-patterns** | ALL agents | System & API design |
 | **frontend-patterns** | ALL agents | UX, accessibility |
 | **brainstorming** | planner | Idea exploration |
-| **github-research** | planner, bug-investigator (conditional) | External package research |
+| **research** | planner, bug-investigator (via github-researcher agent) | Synthesis-only: guides agents on how to interpret research results; GitHub execution is handled by the `github-researcher` agent |
 | **cc10x-router** | ENTRY POINT | Routes to correct workflow |
 
 ---
@@ -520,7 +522,9 @@ plugins/cc10x/
 │   ├── code-reviewer.md
 │   ├── integration-verifier.md
 │   ├── planner.md
-│   └── silent-failure-hunter.md
+│   ├── silent-failure-hunter.md
+│   ├── web-researcher.md
+│   └── github-researcher.md
 │
 └── skills/
     ├── cc10x-router/SKILL.md
@@ -533,7 +537,7 @@ plugins/cc10x/
     ├── brainstorming/SKILL.md
     ├── architecture-patterns/SKILL.md
     ├── frontend-patterns/SKILL.md
-    ├── github-research/SKILL.md
+    ├── research/SKILL.md
     └── verification-before-completion/SKILL.md
 ```
 
@@ -548,7 +552,7 @@ cc10x works out of the box with no MCPs required. These are **optional** — the
 | **[octocode](https://github.com/nicepkg/octocode)** | GitHub research: find packages, search code across repos, read PR history. Triggered automatically when planner or bug-investigator needs external research. | Install via Claude Code MCP settings |
 | **[brightdata](https://github.com/nicepkg/mcp-brightdata)** | Web scraping for research tasks — used as fallback when web content is needed beyond GitHub. | Install via Claude Code MCP settings |
 
-**Without these MCPs:** cc10x still works fully. The `github-research` skill simply won't execute when triggered, and agents will note it in Memory Notes and continue.
+**Without these MCPs:** cc10x still works fully. The `github-researcher` agent simply won't execute GitHub searches when triggered, and agents will note it in Memory Notes and continue.
 
 **With octocode installed:** When the router detects new/unfamiliar tech, 3+ failed debug attempts, or explicit research requests, it automatically calls octocode tools to search GitHub before invoking the planner or bug-investigator.
 
@@ -619,6 +623,6 @@ MIT License
 ---
 
 <p align="center">
-  <strong>cc10x v6.0.21</strong><br>
+  <strong>cc10x v7.1.0</strong><br>
   <em>The Intelligent Orchestrator for Claude Code</em>
 </p>

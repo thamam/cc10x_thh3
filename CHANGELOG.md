@@ -1,5 +1,201 @@
 # Changelog
 
+## [7.2.0] - 2026-03-01
+
+### Hardened — Full SDLC audit fixes (13 changes, 6 files)
+
+Applies all Tier 3 audit findings + legacy cleanup + disconnect fixes from the comprehensive 47-finding SDLC audit. All changes reviewed and approved by code-reviewer (90% confidence, 0 CRITICAL).
+
+**Router hardening (8 changes):**
+- **G3**: Added "brainstorm, brainstorming, explore" keywords to PLAN Decision Tree — prevents misrouting to BUILD
+- **H1**: SELF_REMEDIATED agents now properly mark their original task as completed — fixes stuck task state
+- **H4**: Re-Review Loop now correctly skips hunter for DEBUG/REVIEW and verifier for REVIEW — matches actual Agent Chains
+- **H5**: REM-FIX routing by originating agent (not workflow) — bug-investigator fixes route back to bug-investigator
+- **H6**: Plan file existence validation with Read() + AskUserQuestion fallback — prevents downstream crash on missing plan
+- **H11**: QUICK-to-FULL escalation now creates explicit TaskCreate tasks — replaces vague instructions
+- **D1+D2**: Design file pipeline — brainstorming saves design file, router extracts from References, forwards to planner
+
+**Agent hardening (3 changes):**
+- **H8**: TDD Failure Cap in component-builder — 3 consecutive GREEN failures escalate to STATUS: FAIL + REM-FIX
+- **H9**: Documented "No self-healing (by design)" in silent-failure-hunter — clarifies intentional design vs missing feature
+
+**Legacy cleanup (3 changes):**
+- **L1**: Removed brainstorming's "What's next? A/B/C" prompt that conflicted with router flow control
+- **L2**: Replaced code-generation's legacy "Use brainstorming skill" with AskUserQuestion guidance
+- **L3**: Removed temporal "now" from bug-investigator's legacy research guard
+
+**Known issue discovered and documented:**
+- Context compaction can lose sub-agent output before router processes it. Recovery pattern: resume sub-agent with `agentId` to re-emit findings. See `docs/known-flaws.md`.
+
+## [7.1.0] - 2026-03-01
+
+### Added — Parallel research agent architecture
+
+Refactors inline THREE-PHASE research execution into a parallel agent architecture. The router now spawns two dedicated research agents simultaneously, replacing 5 verbose inline blocks with clean parallel invocations.
+
+**New agents (2):**
+- `web-researcher.md`: Executes web research via Bright Data + WebSearch in parallel. Returns Router Contract with `FILE_PATH` to saved findings. Always writes a file even on UNAVAILABLE — guarantees downstream agents always receive a valid path.
+- `github-researcher.md`: Executes GitHub/package research via Octocode MCP tools. Returns Router Contract with `FILE_PATH`. Same always-write contract.
+
+**Changed (5 files):**
+- `cc10x-router/SKILL.md`: All 5 THREE-PHASE research blocks replaced with parallel `Task(cc10x:web-researcher) ∥ Task(cc10x:github-researcher)` invocations. Router collects both `FILE_PATH` values and passes `## Research Files` to downstream agents. `RESEARCH_EXECUTED + RESEARCH_PERSISTED` gates merged into single `RESEARCH_COMPLETE` gate.
+- `research/SKILL.md`: Rewritten from 240-line THREE-PHASE executor to 91-line synthesis-guidance-only skill. Loaded via SKILL_HINTS by planner + bug-investigator when research files are passed.
+- `planner.md`: Updated research section — references web-researcher + github-researcher. Instructs agent not to spawn research itself.
+- `bug-investigator.md`: `NEEDS_EXTERNAL_RESEARCH` flag in Router Contract triggers router to spawn parallel researchers. Added `RESEARCH_REASON` field enforcement.
+- `cc10x-orchestration-bible.md`: Updated agent count (6 → 8). Added Research Architecture section with parallel flow diagram.
+
+**Fixed:**
+- Circuit Breaker "Research best practices" branch called `Skill(skill="cc10x:research")` directly — stale reference to old executor model. Replaced with parallel researcher spawn pattern.
+
+### Validation
+- Integration-verifier E2E: 13/13 PASS
+- THREE-PHASE blocks remaining: 0
+- New agents in source + cache: 2
+- research/SKILL.md: 91 lines (synthesis-only)
+- Source ↔ cache diff: clean
+- REM-FIX: 1 (Circuit Breaker stale Skill() call — fixed)
+
+---
+
+## [7.0.2] - 2026-03-01
+
+### Fixed — Internal audit: 17 cross-file consistency fixes
+
+Comprehensive internal audit of the entire cc10x orchestration system. Found and fixed 17 issues across 10 files (4 bugs, 6 contradictions, 5 gaps + 2 from deep cross-file validation).
+
+**Bugs (4):**
+- `silent-failure-hunter.md`: Added missing `TaskCreate, TaskList` to tools — agent couldn't create self-healing tasks
+- `integration-verifier.md`: Shell Safety section referenced `Write/Edit` tools the READ-ONLY agent doesn't have — changed to "Report in output only"
+- `bug-investigator.md`: `Skill()` call used `query=` parameter instead of correct `args=`
+- `code-generation/SKILL.md`: Examples used `grep`/`ls`/`cat` bash commands instead of dedicated `Grep`/`Glob`/`Read` tools
+
+**Contradictions (6):**
+- 3 READ-ONLY agents: Added `mkdir -p .claude/cc10x` before memory reads — prevents failure on fresh projects
+- `code-reviewer.md`: Added `SELF_REMEDIATED` to Router Contract STATUS enum — was handled by router but missing from agent's declared values
+- `session-memory/SKILL.md`: Updated READ-ONLY agent description to match reality (agents read files directly, not "receive summary in prompt")
+- `bug-investigator.md`: DEBUG-RESET variable changed from `{TASK_ID}` to `{PARENT_WORKFLOW_ID}` to match router
+- `cc10x-router/SKILL.md`: Merged three rules all labeled `2d` into structured single rule with CHOSEN_OPTION sub-cases A/B/C + added `2e` and `2f-ii`
+- `cc10x-orchestration-bible.md`: DEBUG-RESET authorship corrected from "router writes" to "bug-investigator writes"
+
+**Gaps (5):**
+- `bug-investigator.md`: Added Test Process Discipline section (orphan process cleanup for vitest/jest)
+- `code-reviewer.md` + `integration-verifier.md`: Documented `addBlockedBy` on in_progress task behavior
+- `component-builder.md` + `bug-investigator.md`: Added non-npm TDD escape clause for pure HTML/CSS/JS projects
+- `session-memory/SKILL.md`: Added `Skill Hints` key to Memory Notes template for cross-workflow persistence
+- `brainstorming/SKILL.md`: Added `2>/dev/null` error handling for empty/new projects
+
+**Deep audit fixes (2):**
+- `bug-investigator.md`: Added non-npm TDD exception to CONTRACT RULE (component-builder had it, bug-investigator didn't)
+- `cc10x-router/SKILL.md`: Fixed comment variable name `{task_id}` → `{parent_task_id}` at DEBUG-RESET note
+
+### Validation
+- Source ↔ v7.0.1 cache: 19/19 files MATCH
+- Smoke test: 42/42 PASS
+- Deep cross-file audit: 10/10 categories PASS (tool declarations, STATUS values, skill refs, memory protocol, chains, bible, variables, TDD, session-memory, brainstorming)
+
+---
+
+## [7.0.1] - 2026-03-01
+
+### Fixed — Architectural correction: shadow orchestration removed
+
+Fixes a fundamental violation of cc10x's orchestration model introduced in v7.0.0: two new skills were spawning `Task()` subagents outside the router's control plane. In Claude Code, only the main session (router) can spawn subagents — sub-agents cannot spawn sub-agents (platform-level nesting guard, v2.1.41).
+
+**plan-review-gate — rewritten as inline review (no subagents):**
+- Removed all `Task()` spawning from the skill
+- The 3 adversarial checks (Feasibility, Completeness, Scope) now run inline in the calling agent's context using Read/Grep/Glob
+- `allowed-tools` updated: `Task` removed
+- Feasibility check uses actual file system verification (Glob/Grep on referenced paths)
+- GATE_PASS / GATE_FAIL output format replaces the parallel-agents workflow
+- Planner agent now calls `Skill(skill="cc10x:plan-review-gate")` after saving the plan — gate runs inside planner's context, planner returns PLAN_CREATED only after GATE_PASS
+- Router step 5b removed entirely — planner owns the gate; router stays lean (802 lines)
+
+**brainstorming Post-Design Gate — Task() spawns removed:**
+- Replaced two `Task(subagent_type="general-purpose", ...)` blocks with 3-line advisory guidance
+- Renamed section to "Pre-Handoff Design Check (Optional)" — self-review, no agents
+
+**self-reflect skill — deleted:**
+- Removed `plugins/cc10x/skills/self-reflect/` from source and cache
+- Memory Update task + manual patterns.md editing covers the use case
+- No user-visible regression (Memory Update is fully automatic per workflow)
+
+### Notes
+- BUILD/DEBUG/REVIEW chains: unchanged
+- planner.md: +14 lines (Plan Review Gate section)
+- cc10x-router/SKILL.md: -7 lines (step 5b removed); now 802 lines
+- plan-review-gate/SKILL.md: fully rewritten (inline review, no subagents)
+
+---
+
+## [7.0.0] - 2026-03-01
+
+### Added — Metaswarm Integration (5 new capabilities)
+
+Five high-value patterns extracted from metaswarm and integrated natively into cc10x.
+
+**1. Plan Review Gate (`plugins/cc10x/skills/plan-review-gate/SKILL.md`)**
+- New standalone skill: 3 adversarial reviewers (Feasibility, Completeness, Scope) run in parallel after planner
+- All 3 must PASS before plan reaches user; max 3 iterations then ESCALATION (Override/Revise/Simplify/Cancel)
+- Router step 5b: gate reads the actual plan and decides trivial/non-trivial itself
+
+**2. Adversarial Evidence Requirements (`plugins/cc10x/agents/code-reviewer.md`)**
+- `APPROVE` now requires `EVIDENCE_ITEMS≥1` — at least one cited `file:line` in the Router Contract
+- New `EVIDENCE:` block in Router Contract YAML; router CONTRACT RULE enforces `OR EVIDENCE_ITEMS<1`
+
+**3. Self-Reflect Skill (`plugins/cc10x/skills/self-reflect/SKILL.md`)**
+- New standalone skill: mines session context for learnings → patterns.md (Phase A–F, 4-filter quality gate)
+
+**4. Inline Rubric Criteria**
+- `code-reviewer`: `## Review Checklist` table (7 categories with severity tiers)
+- `integration-verifier`: Coverage gate WARNING row (0 tests found = WARNING, not FAIL)
+
+**5. Post-Design Review Gate (`plugins/cc10x/skills/brainstorming/SKILL.md`)**
+- Optional Architecture+Security parallel review after design doc is saved
+
+### Changed (v7.0.0 — closes all 4 v6.0.38 deferred MEDIUM items)
+
+- Router step 5b: trivial-plan skip removed from router; gate decides by reading actual plan (M-1)
+- self-reflect Phase E: Write() fallback if patterns.md missing on fresh projects (M-2)
+- brainstorming: explicit `# design_path = ...` code-style assignment before Task() spawns (M-3)
+- Router ESCALATION: "Remaining Blocking Issues" section passed verbatim to planner on Revise/Simplify (M-4)
+
+### Docs
+- Bible: PLAN Chain (step 5b), code-reviewer EVIDENCE_ITEMS, new Standalone Skills section
+- router-invariants.md: INV-026 (plan-review-gate), INV-027 (EVIDENCE_ITEMS enforcement)
+- cc10x-orchestration-safety: plan-review-gate + self-reflect noted as approved exceptions
+
+### Notes
+- BUILD/DEBUG/REVIEW chains unchanged — new skills are standalone (not in agent chains)
+- 13/13 v7.0.0 checks PASS; all 27 v6.0.38 regression checks intact
+
+---
+
+## [6.0.37] - 2026-03-01
+
+### Changed (Architectural — Agent Decentralization)
+
+Router logic moved to the agents that own it. The router routes; agents act.
+
+**Move 1 — DEBUG-RESET marker → `bug-investigator`**
+- Router: 8-line "Debug Workflow Scoping" block → 1-line pointer
+- `bug-investigator`: new `## DEBUG-RESET Marker` section writes `[DEBUG-RESET: wf:{PARENT_WORKFLOW_ID}]` at startup (before any investigation), using the parent DEBUG workflow task ID passed by the router
+- Router agent invocation template: now passes `Parent Workflow ID: {parent_task_id}` to all agents
+
+**Move 2 — CHOSEN_OPTION B/C handling → `integration-verifier`**
+- `integration-verifier`: Options B (revert branch) and C (accept limitation) now use inline `AskUserQuestion` before returning — verifier owns the user interaction
+- New STATUS values: `REVERT_RECOMMENDED` (user confirmed revert) and `LIMITATION_ACCEPTED` (user accepted limitation)
+- Router rule 2d: 15 lines → 2-line handler for the two new STATUS values
+- Router rule 1a NOT IN list: updated to include `REVERT_RECOMMENDED` and `LIMITATION_ACCEPTED`
+- `integration-verifier` CONTRACT RULE: rewritten to accurately describe all STATUS values
+
+**Net result:** Router 816 → 801 lines (−15). Agents are more self-contained. Logic lives where it belongs.
+
+### Notes
+- v6.0.34–v6.0.36 were intermediate patch releases (correctness fixes + compression); v6.0.37 is the first architectural release
+- Move 3 (INVESTIGATING loop cap) was confirmed already removed in v6.0.30–v6.0.33
+
+---
+
 ## [6.0.33] - 2026-03-01
 
 ### Fixed (Critical)

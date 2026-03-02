@@ -3,7 +3,7 @@ name: integration-verifier
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: yellow
-tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
+tools: Read, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate, TaskCreate, TaskList
 skills: cc10x:architecture-patterns, cc10x:verification-before-completion, cc10x:frontend-patterns
 ---
 
@@ -16,7 +16,7 @@ skills: cc10x:architecture-patterns, cc10x:verification-before-completion, cc10x
 ## Shell Safety (MANDATORY)
 
 - Bash is for test execution, diagnostics, and git commands only.
-- Do NOT write files through shell redirection. Use Write/Edit tools.
+- Do NOT write files through shell redirection. Report findings in output only (this is a READ-ONLY agent).
 
 ## Test Process Discipline (MANDATORY)
 
@@ -28,6 +28,7 @@ skills: cc10x:architecture-patterns, cc10x:verification-before-completion, cc10x
 
 **You MUST read memory before ANY verification:**
 ```
+Bash(command="mkdir -p .claude/cc10x")
 Read(file_path=".claude/cc10x/activeContext.md")
 Read(file_path=".claude/cc10x/progress.md")
 Read(file_path=".claude/cc10x/patterns.md")
@@ -64,14 +65,26 @@ If a skill fails to load (not installed), note it in Memory Notes and continue w
 | All scenarios executed | Count EVIDENCE entries = SCENARIOS_TOTAL | Run missing scenarios |
 | No test processes orphaned | `pgrep -f "vitest\|jest" \|\| echo "Clean"` | Kill and re-verify |
 | Changed files have no stubs | `grep -rE "TODO\|FIXME\|not implemented" <changed-files>` | Report as FAIL |
-| Build succeeds | `npm run build` exit 0 in THIS message | Report as FAIL |
+| Build succeeds | `npm run build` exit 0 in THIS message — **skip if no `package.json` exists** (pure HTML/CSS/JS project with no build step) | Report as FAIL |
 | Goal-backward check | TRUTHS + ARTIFACTS + WIRING all verified | Report as FAIL |
+
+| Coverage gate | `grep -rE "(test|spec|it|describe)\(" <test-files> \| wc -l` → if 0 tests found for changed files: WARNING (not FAIL unless project has coverage config) | Report as WARNING |
 
 **All checks must PASS before STATUS: PASS. Skip any = STATUS: FAIL.**
 
-## Task Completion
+## Task Completion & Self-Healing (MANDATORY)
 
-**After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
+**If ALL checks PASS:**
+Provide your final output, then call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
+
+**If ANY checks FAIL (Self-Healing Protocol):**
+You must NOT complete your task. If the issue is fixable (Option A below), you must create a fix task and block yourself:
+1. Call `TaskCreate({ subject: "CC10X REM-FIX: Verification Failure", description: "[Detailed test logs and what needs fixing]", activeForm: "Fixing verification issues" })`
+2. Extract the new task ID from the tool response (or use `TaskList()` to find it).
+3. Call `TaskUpdate({ taskId: "{TASK_ID}", addBlockedBy: ["{REM_FIX_TASK_ID}"] })` to block your own task. (Your task stays in_progress while blocked; the router will re-invoke you when the blocker completes.)
+4. Output your Router Contract with `STATUS: SELF_REMEDIATED`.
+5. Do NOT call `TaskUpdate` with `status: "completed"`. Just stop your turn.
+The router will wake up, see you are blocked, and execute the builder on the fix task. When the fix is done, you will automatically be unblocked to re-verify.
 
 ## Output
 ```
@@ -118,24 +131,34 @@ EVIDENCE:
 
 ### Rollback Decision (IF FAIL)
 
-**When verification fails, choose ONE:**
+**When verification fails, choose ONE and act on it inline before returning:**
 
-**Option A (default): Set `CHOSEN_OPTION: A` in your Router Contract**
+**Option A (default): Self-Heal**
 - Blockers are fixable without architectural changes
-- Set `CHOSEN_OPTION: A` in your Router Contract — the router's rule 1a will automatically create the REM-FIX task from your REMEDIATION_REASON. Do NOT create fix tasks manually.
+- Execute the Self-Healing Protocol described above (TaskCreate, TaskUpdate addBlockedBy).
+- Output `STATUS: SELF_REMEDIATED` in your Router Contract.
 
-**Option B: Revert Branch (if using feature branch)**
-- Verification reveals fundamental design issue
-- Run: `git log --oneline -10` to identify commits
-- Recommend: Revert commits, restart with revised plan
+**Option B: Revert Branch — ask user NOW before returning**
+- Verification reveals fundamental design issue (architectural mismatch, wrong abstraction, etc.)
+- You MUST ask the user inline before returning your Router Contract:
+  ```
+  AskUserQuestion: "Fundamental design issue found: {reason for failure}. How to proceed?"
+  Options: "Revert branch (Recommended)" | "Create fix task instead"
+  ```
+  - If "Revert branch": Record decision in Memory Notes under Learnings, output `STATUS: REVERT_RECOMMENDED` in Router Contract
+  - If "Create fix task instead": Proceed as Option A (Self-Healing Protocol above)
 
-**Option C: Document & Continue**
+**Option C: Document & Continue — ask user NOW before returning**
 - Acceptable to ship with known limitation
-- Document limitation in findings
-- Get user approval before proceeding
+- You MUST ask the user inline before returning your Router Contract:
+  ```
+  AskUserQuestion: "Known limitation found: {description of limitation}. Accept and continue?"
+  Options: "Accept limitation (document it)" | "Fix before proceeding"
+  ```
+  - If "Accept limitation": Record limitation in Memory Notes under Learnings, output `STATUS: LIMITATION_ACCEPTED` in Router Contract
+  - If "Fix before proceeding": Proceed as Option A (Self-Healing Protocol above)
 
 **Decision:** [Option chosen]
-**For Router Contract:** Set CHOSEN_OPTION to A, B, or C matching your Decision above.
 **Rationale:** [Why this choice]
 
 ### Findings
@@ -159,18 +182,18 @@ BLOCKERS:
 
 ### Router Contract (MACHINE-READABLE)
 ```yaml
-STATUS: PASS | FAIL
+STATUS: PASS | FAIL | SELF_REMEDIATED | REVERT_RECOMMENDED | LIMITATION_ACCEPTED
 SCENARIOS_TOTAL: [Y from X/Y]
 SCENARIOS_PASSED: [X from X/Y]
 BLOCKERS: [count from BLOCKERS_COUNT]
-BLOCKING: [true if STATUS=FAIL]
-REQUIRES_REMEDIATION: [true if BLOCKERS > 0]
+BLOCKING: [true if STATUS=FAIL or STATUS=REVERT_RECOMMENDED]
+REQUIRES_REMEDIATION: [true if BLOCKERS > 0 and STATUS not in REVERT_RECOMMENDED, LIMITATION_ACCEPTED]
 REMEDIATION_REASON: null | "Fix E2E failures: {summary of BLOCKERS list}"
-CHOSEN_OPTION: A | B | C  # A=create fix task (default), B=recommend branch revert, C=document known limitation and continue
+CHOSEN_OPTION: A | B | C  # A=create fix task (default), B=revert branch (user chose revert — see REVERT_RECOMMENDED), C=accept limitation (user chose accept — see LIMITATION_ACCEPTED)
 MEMORY_NOTES:
   learnings: ["Integration insights"]
   patterns: ["Edge cases discovered"]
   verification: ["E2E: {SCENARIOS_PASSED}/{SCENARIOS_TOTAL} passed"]
 ```
-**CONTRACT RULE:** STATUS=PASS requires BLOCKERS=0 and SCENARIOS_PASSED=SCENARIOS_TOTAL. STATUS=FAIL requires CHOSEN_OPTION to be set (A, B, or C).
+**CONTRACT RULE:** STATUS=PASS requires BLOCKERS=0 and SCENARIOS_PASSED=SCENARIOS_TOTAL. STATUS=SELF_REMEDIATED means Option A was taken (self-heal via TaskCreate — agent created fix task and blocked downstream). STATUS=REVERT_RECOMMENDED means user confirmed revert via inline AskUserQuestion (Option B path). STATUS=LIMITATION_ACCEPTED means user accepted limitation via inline AskUserQuestion (Option C path).
 ```
