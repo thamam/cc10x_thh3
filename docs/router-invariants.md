@@ -337,5 +337,87 @@ If no: it's probably prose — compress it.
 
 ---
 
-*Last updated: v7.1.1 — 2026-03-01*
-*Router version at last audit: 7.1.1 (~800 lines)*
+---
+
+## Tier 1 Fix Invariants (v7.1.2 — 2026-03-02)
+
+### INV-029: Rule 0b — no forced completion on SELF_REMEDIATED (CC10X-003)
+**Covers:** Rule 0b — removal of TaskUpdate(completed)
+**Enforces:** SELF_REMEDIATED tasks stay blocked by their own REM-FIX task. The Remediation Re-Review Loop (step 1) creates a fresh re_reviewer task. Forcing completed here would cancel the re-review.
+**Fails silently if removed:** code-reviewer creates REM-FIX, blocks itself. Rule 0b marks it completed — canceling the block. Re-review never happens. Remediation ships unchecked.
+**Safe to remove:** Never while SELF_REMEDIATED protocol + Remediation Re-Review Loop coexist.
+
+### INV-030: Rule 0c research section name (CC10X-004)
+**Covers:** Rule 0c re-invoke prompt — "## Research Files" header
+**Enforces:** Bug-investigator receives research findings under the correct header name.
+**Fails silently if removed/renamed:** Bug-investigator looks for "## Research Files" but receives "## External Research Findings". Research is silently ignored. Investigation cycle wasted.
+**Safe to remove:** Only if bug-investigator header expectation changes simultaneously.
+
+### INV-031: Memory Update inline guard (CC10X-002)
+**Covers:** Chain Execution Loop step 2 — Memory Update guard
+**Enforces:** Memory Update tasks are ALWAYS executed inline by the router. Sub-agents don't inherit conversation context — they read stale memory and write stale content back.
+**Fails silently if removed:** Router dispatches Memory Update as a Task() sub-agent. Sub-agent reads stale files, writes stale content. Next session runs on incorrect state.
+**Safe to remove:** Never. Memory Update requires conversation context that sub-agents cannot inherit.
+
+### INV-032: silent-failure-hunter output length gate (CC10X-001)
+**Covers:** Post-Agent Validation — pre-check for hunter output < 200 chars
+**Enforces:** When hunter emits only a task completion line (1-line output failure mode), escalate to AskUserQuestion immediately instead of creating REM-EVIDENCE task.
+**Fails silently if removed:** REM-EVIDENCE is created. Re-invoke returns identical 1-line output (2/3 failure rate confirmed). Code review has no silent-failure signal. Silent failures ship.
+**Safe to remove:** Only if root cause (TaskUpdate as last tool call) is verifiably fixed in the agent.
+
+### INV-033: GATE_PASSED contract enforcement for planner (CC10X-009)
+**Covers:** CONTRACT RULE table — planner row, GATE_PASSED field
+**Enforces:** plan-review-gate must be invoked before STATUS=PLAN_CREATED is accepted. GATE_PASSED=false blocks the plan.
+**Fails silently if removed:** Planner skips adversarial review (confirmed runtime OBS-2). Feasibility issues, scope creep, missing requirements ship unchecked into BUILD.
+**Safe to remove:** Only if plan-review-gate is directly router-enforced via a separate step (not agent-delegated).
+
+### INV-034: QUICK escalation in_progress marks (CC10X-056)
+**Covers:** QUICK escalation block — TaskUpdate(in_progress) before parallel Task() calls
+**Enforces:** Matches Chain Execution Loop standard (step 2 — "Call TaskUpdate in_progress for EACH ready task before any Task() call").
+**Fails silently if removed:** Escalated tasks stay "pending" during execution. If TaskList() is called before both complete, pending task appears re-invocable.
+**Safe to remove:** Only if Chain Execution Loop step 2 standard is also removed.
+
+### INV-035: Rule 2b — NEEDS_CLARIFICATION loop cap
+**Covers:** Contract validation rule 2b — NEEDS_CLARIFICATION loop
+**Enforces:** After 3+ completed planner tasks, ask user whether to retry, proceed with best available plan, or abort.
+**Fails silently if removed:** Planner stuck in NEEDS_CLARIFICATION loops indefinitely.
+**Safe to remove:** Only if planner is guaranteed to always resolve in ≤3 passes.
+
+### INV-036: Rule 0b/0c — Physical order matches documented evaluation sequence
+**Covers:** EVALUATION ORDER block — rule 0 → 0b → 0c sequence
+**Enforces:** File-physical order of 0b/0c matches documented evaluation order (0b before 0c).
+**Fails silently if removed:** Future readers interpret 0c as higher priority than 0b. Confusion in evaluating SELF_REMEDIATED vs NEEDS_EXTERNAL_RESEARCH.
+**Safe to remove:** Never — physical order is the execution order.
+
+### INV-037: Orphan check — blockedBy context display
+**Covers:** Check Active Workflow Tasks, orphan check
+**Enforces:** If orphaned in_progress task has non-empty blockedBy, user is informed it is a self-healing cycle (not a true orphan).
+**Fails silently if removed:** User is asked to "Resume/Complete/Delete" a task that is intentionally blocked. They may delete valid in-progress self-heal.
+**Safe to remove:** Only if SELF_REMEDIATED agents never stay in_progress.
+
+### INV-038: DEBUG serial verifier circuit breaker
+**Covers:** Contract validation rule 2d (DEBUG only)
+**Enforces:** After 2+ Re-verify completions in a DEBUG workflow, ask user to continue/escalate/abort.
+**Fails silently if removed:** Serial investigator ↔ verifier loop runs indefinitely, silently exhausting token budget.
+**Safe to remove:** Never while DEBUG verifier re-verification is a valid path.
+
+### INV-039: REVIEW scope persistence (CC10X-014)
+**Covers:** REVIEW workflow step 2
+**Enforces:** AskUserQuestion scope answers are persisted to ## Decisions before chain starts. Reviewer receives scope from Decisions (compaction-safe).
+**Fails silently if removed:** Context compaction between scope clarification and reviewer invocation loses the scope. Reviewer reviews everything or nothing.
+**Safe to remove:** Never while compaction during REVIEW is possible.
+
+### INV-040: REVIEW-to-BUILD transition gate (CC10X-015)
+**Covers:** REVIEW workflow step 6
+**Enforces:** When reviewer returns CHANGES_REQUESTED, user is offered a BUILD transition to act on findings.
+**Fails silently if removed:** Reviewer produces CHANGES_REQUESTED. User must manually re-invoke BUILD with no context. Findings may be lost after session.
+**Safe to remove:** Only if REVIEW is always followed immediately by a separate BUILD invocation.
+
+### INV-041: PLAN research paths persisted to memory (CC10X-022)
+**Covers:** PLAN workflow step 3
+**Enforces:** web_file and github_file from parallel research are written to activeContext.md ## References immediately after collection.
+**Fails silently if removed:** Research file paths only exist as in-context variables. Context compaction between PLAN step 3 and planner invocation loses the paths. Planner receives no research.
+**Safe to remove:** Never while PLAN research is a feature.
+
+*Last updated: v7.3.0 — 2026-03-02 (Tier 2 fixes: CC10X-010 through CC10X-024, CC10X-057/058)*
+*Router version at last audit: 7.3.0 (~875 lines)*
