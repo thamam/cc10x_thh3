@@ -1,5 +1,135 @@
 # Changelog
 
+## [8.0.0] - 2026-03-04
+
+### Radical Simplification — Remove Router Contract YAML from read-only agents
+
+**Root cause:** The `### Router Contract (MACHINE-READABLE)` YAML block was introduced in v6 to give the router a machine-parseable signal. It immediately became the #1 source of failures: it lived at the END of every agent output, agents used 40-60K tokens before reaching it, and the last section was always the first to be truncated. Every subsequent "fix" added more compensation logic (REM-EVIDENCE loops, output-length pre-checks, Router Handoff stable extraction), making the system progressively more brittle.
+
+**The insight:** Every agent already outputs a structured heading on the FIRST LINE (`## Review: Approve`, `## Error Handling Audit: CLEAN`, `## Verification: PASS`) that carries the same information as the YAML. These headings survive any truncation. The YAML added nothing except complexity and failure modes.
+
+### Removed (~280 lines)
+- `### Router Contract (MACHINE-READABLE)` YAML from `code-reviewer.md`, `silent-failure-hunter.md`, `integration-verifier.md`
+- `### Router Handoff (Stable Extraction)` from `code-reviewer.md`, `integration-verifier.md`
+- `### Dev Journal (User Transparency)` from `code-reviewer.md`, `silent-failure-hunter.md`, `integration-verifier.md`
+- `REM-EVIDENCE` task creation + retry loop from router (~40 lines)
+- Router Contract validation block (Steps 1-2, ~200 lines) — replaced by 30-line text extraction
+- Pre-checks for output truncation (OBS-15) and silent-failure-hunter minimal output gates
+- `HIGH_ISSUES` / `EVIDENCE_ITEMS` / `CONFIDENCE<80` / `SCENARIOS_PASSED≠SCENARIOS_TOTAL` checks (all YAML-only fields)
+
+### Added
+- **Text-Based Verdict Extraction** (30 lines) — extracts STATUS from heading (first 5 lines), counts `### Critical Issues` bullets, detects `SELF_REMEDIATED` from task state
+- **JUST_GO session mode** — reads `AUTO_PROCEED: true` from `activeContext.md ## Session Settings`; auto-defaults all non-REVERT gates without prompting
+- **Empty Answer Guard simplification** — only REVERT gates stop on empty answer; all others auto-proceed with recommended default
+- **`## Error Handling Audit: CLEAN/ISSUES_FOUND` heading** to silent-failure-hunter (was missing the status suffix)
+- **`**CONTRACT:**` note** at bottom of each read-only agent template documenting the text-based contract
+
+### Changed
+- `cc10x-router/SKILL.md`: 866 → ~700 lines; replaced YAML validation with text extraction; rule 1b auto-defaults to "Fix now"; rule 2d simplified
+- `agents/code-reviewer.md`: 183 lines → 183 lines (net flat; sections restructured)
+- `agents/silent-failure-hunter.md`: 179 → 145 lines
+- `agents/integration-verifier.md`: 226 → 190 lines
+- Smoke test updated: read-only agents now checked for `CONTRACT` note instead of `Router Contract` YAML
+
+## [7.9.0] - 2026-03-03
+
+### Fixed — 4 dogfooding-discovered systemic issues
+
+- **integration-verifier Router Contract ordering**: Template had `### Task Status` / `Task N: COMPLETED` appearing BEFORE `### Router Contract (MACHINE-READABLE)`. LLM treated "COMPLETED" as work-completion signal and called `TaskUpdate` before ever outputting the YAML block — causing systematic REM-EVIDENCE loops. Fixed: Router Contract section now appears before Task Status in the output template. Added explicit CRITICAL guard: "Do NOT call TaskUpdate until the Router Contract section has been fully output."
+
+- **Planner file-on-disk verification (3-layer fix)**: A planner could report `STATUS: PLAN_CREATED` with `GATE_PASSED: true` while the plan file didn't exist on disk (Write() failed silently at token budget limit). Fixed at all 3 layers: (1) `planner.md` — Glob() check after Write(), retry + NEEDS_CLARIFICATION if missing; (2) `plan-review-gate/SKILL.md` — "Plan file exists on disk" added as first Check 1 Feasibility criterion; (3) `cc10x-router/SKILL.md` — new step 7b runs Glob() on `contract.PLAN_FILE` before the PLAN-to-BUILD gate.
+
+- **Gate 9 definition-implementation split**: Gate 9 spec required announce + log `"Killed: [names]"` / `"None found"`, but Chain Execution Loop step 3 only ran a silent `pkill ... || true`. Fixed: both spec and implementation now use a pgrep-based command that announces cleanup and logs result. Spec and implementation are now in sync.
+
+- **Release checklist permanence**: Version bump checklist only existed in ephemeral session memory — invisible after compaction, not version-controlled. Fixed: `## Release Checklist` section added at end of router documenting all 3 required files (source plugin.json, cache plugin.json, marketplace.json) permanently.
+
+### Changed
+- `cc10x-router/SKILL.md`: +Gate 9 logging fix, +step 7b Glob check, +Release Checklist section
+- `agents/integration-verifier.md`: Router Contract now before Task Status
+- `agents/planner.md`: +post-Write Glob verification
+- `skills/plan-review-gate/SKILL.md`: +plan file existence as first feasibility check
+
+## [7.8.0] - 2026-03-03
+
+### Fixed — OBS-1, OBS-9, OBS-15, OBS-16, DEBUG-RESET (5 systemic issues)
+
+- **OBS-16 (REM-EVIDENCE kill phrases)**: Two router locations contained phrases that caused agents to prematurely conclude their job was done (`"succeeded"`, `"Output ONLY"`, `"Re-read the files you analyzed"`, `"Do NOT call TaskUpdate until AFTER"`). All replaced with neutral `"REQUIRED: Include a ### Router Contract (MACHINE-READABLE) YAML block in your response"` framing. Applies to both the `TaskCreate` description template and the chain execution re-invoke prompt.
+
+- **DEBUG-RESET marker ownership**: Moved from `bug-investigator.md` (unreliable — LLMs skip unnumbered `##` sections before numbered `## Process`) to router step 4a. Pattern now mirrors `BUILD-START` and `PLAN-START` (both already router-written). Router writes `[DEBUG-RESET: wf:{workflow_task_id}]` with Read-back verify + STOP guard. Net −13 lines from `bug-investigator.md`.
+
+- **OBS-9 (TEST_PROCESSES_CLEANED orphan gate)**: Gate 9 was defined in the Gates section but never called in the Chain Execution Loop. Added single `Bash(command="pkill -f 'vitest|jest|mocha' 2>/dev/null || true")` line in step 3, conditioned on `"CC10X component-builder:"` subject. Runs after builder, before reviewers see test state.
+
+- **OBS-1 (Pre-AskUserQuestion context gap)**: `⚠️` AskUserQuestion calls fired immediately after batches of tool calls with no preceding text — UI rendered the question before the user had context. Added general `Pre-AskUserQuestion output rule` at the top of Router Contract Validation: one sentence summarizing the finding is required before any `⚠️` gate.
+
+- **OBS-15 (code-reviewer token exhaustion)**: `code-reviewer` unconditionally loaded 4 skills (~28–36K tokens) plus unbounded `git diff HEAD` (up to 60K) before producing any output. Two fixes: (1) **Output skeleton first** — step 0 immediately outputs a one-liner before any tool calls, ensuring partial output even if token budget runs low. (2) **Conditional `frontend-patterns`** — removed from frontmatter (was always loaded); now loads only when `git diff HEAD --name-only` contains `.tsx, .jsx, .vue, .css, .scss, .html`. Saves up to 583 lines / 36% of skill token budget on pure backend reviews.
+
+### Changed
+- `cc10x-router/SKILL.md`: 834 → 844 lines (+10 net across 6 edits)
+- `bug-investigator.md`: removed DEBUG-RESET section (−13 lines)
+- `code-reviewer.md`: output skeleton + conditional frontend skill (+4 net lines)
+
+## [7.7.0] - 2026-03-03
+
+### Fixed — OBS-1, OBS-15, OBS-16, Fix C (external stress test findings)
+
+- **OBS-1**: Empty AskUserQuestion answer on critical blocking gates — router previously auto-defaulted to recommended option silently (including REM-FIX creation, revert operations, task deletion). Fix: `Empty Answer Guard (CRITICAL GATES ONLY)` block added with 19 `⚠️`-marked critical AskUserQuestion calls. Empty answer on ⚠️-gate re-asks once, then pauses workflow. Non-critical gates (Plan-First, PLAN-to-BUILD, research prompts) retain auto-default behavior.
+- **OBS-15**: `code-reviewer` produces 0 text output despite 20–26 tool calls and 64–77K tokens (output truncation / token budget exhaustion). New `OUTPUT_TRUNCATED` pre-check: if reviewer output < 500 chars AND ≥ 10 tool calls → `AskUserQuestion` (Re-invoke / Skip / Abort). Does NOT create REM-EVIDENCE (truncation recurs on retry; needs user decision).
+- **OBS-16**: REM-EVIDENCE prompt phrase "Your work is already saved to memory" caused agent to call TaskUpdate immediately with no output. Phrase removed from both router locations: `TaskCreate` description template and chain execution re-invoke prompt. Replaced with explicit: "Re-read the files you analyzed. Output ONLY the Router Contract YAML block. Do NOT call TaskUpdate until AFTER you output the YAML block."
+- **Fix C**: `integration-verifier.md` — PASS result requires full Router Contract YAML. Added unconditional "NO EXCEPTIONS" rule: `"Task N: COMPLETED" alone is NEVER sufficient even when all scenarios pass.` *Confirmed working live in dogfood session: verifier produced full Router Contract output for the first time.*
+
+### Dogfooding catches during this session
+- OBS-16 nuance: ANY "work complete/done/succeeded" phrasing triggers premature TaskUpdate — not just the specific "already saved to memory" phrase. REM-EVIDENCE prompts must frame work as incomplete, not complete.
+- `bash grep` silently returns empty output for emoji/unicode patterns in zsh environment — use Python subprocess for reliable unicode grep.
+
+## [7.6.0] - 2026-03-03
+
+### Fixed — CC10X-057/058 minimal output bug (two-fix solution)
+
+- **Fix A — `silent-failure-hunter.md`**: Added explicit "Zero-results path (CRITICAL)" at Process step 1 — when grep finds no code patterns (e.g., Markdown-only projects), agent must still emit full output with STATUS=CLEAN. Replaced escape hatch ("If analysis complete but output is short: emit one sentence") with unconditional "NO EXCEPTIONS" rule: `"Task N: COMPLETED" alone is NEVER sufficient output.`
+- **Fix B — `cc10x-router/SKILL.md`**: Disambiguated IMPORTANT block bullet 4 — `"no memory edits"` now explicitly means "skip Edit() calls on `.claude/cc10x/*.md`" — not reduced analysis scope. Analysis quality (≥200 chars), Router Contract YAML, and Memory Notes section are REQUIRED regardless of parallel phase status.
+
+### Investigation notes
+
+Parallel hunt (3 theories) confirmed two root causes: (1) hunter greps for code patterns (`try/catch/throw`) in Markdown orchestration projects → 0 results → "nothing to report" → 21-char output. (2) IMPORTANT block `"prefer no memory edits"` in parallel phase misread as "minimize everything" by agents with Edit tool — bullet 5's MUST clause (Memory Notes) only applies to agents without Edit, leaving Edit-having agents with no hard output requirement in parallel phases. Fix A closes Theory 1+3. Fix B closes Theory 2.
+
+## [7.5.0] - 2026-03-03
+
+### Fixed — 15 post-audit fixes (B3, B4, B5, D1, D2, D4, P1–P3, P7–P10, R1, R2)
+
+- **B3**: Gate 9 pkill uses simple patterns (`vitest|jest|mocha`) instead of `\b` word boundaries (macOS compatibility)
+- **B4**: BUILD pre-answers now checks both `"Planner clarification ["` and `"Build clarification ["` prefixes (resume correctness)
+- **B5**: Step 3a memory_task_id write is now idempotent — skip if already present in ## References (prevents 3x duplicates in BUILD)
+- **D1**: Rule 0c research loop cap scoped to current workflow using `[DEBUG-RESET: wf:{id}]` marker (no longer fires from prior sessions)
+- **D2**: DEBUG Memory Update fallback when `[DEBUG-RESET:]` marker is absent — preserve all Recent Changes (no crash)
+- **D4**: bug-investigator.md "Research File:" updated to "## Research Files" (plural, matching router two-file format)
+- **P1**: Design file extraction is now unconditional in PLAN workflow (no longer gated on vague/ambiguous requests)
+- **P2**: PLAN Memory Update task description expanded to match BUILD quality (Learnings, Deferred, freshness cleanup)
+- **P3**: NEEDS_CLARIFICATION loop cap re-invocation creates trackable TaskCreate entries ("Re-plan after clarification") and cap filter updated
+- **P7**: PLAN research step 4 adds timeout/failure fallback for null FILE_PATH
+- **P8**: PLAN research AskUserQuestion adds "Abort workflow" option (matches DEBUG parity)
+- **P9**: DEBUG research files persisted to activeContext.md ## References (compaction-safe, matching PLAN)
+- **P10**: Circuit Breaker and Remediation Re-Review researcher spawns now include TaskCreate + Task IDs
+- **R1**: Rule 1b creates advisory prompt (not REM-FIX) when in REVIEW workflow — offers "Start BUILD" or "Done for now"
+- **R2**: code-reviewer "What's Next" text now accurate for REVIEW context (no verifier in REVIEW chain)
+
+### Changed
+- Router trimmed from 878 → 819 lines (C1/C3/C4/C5/C6 removed; C2 excluded — runtime prompt)
+- Results Collection section moved to integration-verifier.md ## Context from Previous Agents
+- Agent Chains merged into Decision Tree table (new "Agent Chain" column)
+
+## [7.4.2] - 2026-03-02
+
+### Fixed — 3 UX/DX improvements
+
+**Memory files now git-tracked:**
+- `.claude/cc10x/` un-ignored in `.gitignore` using glob-level pattern. Memory files (`activeContext.md`, `patterns.md`, `progress.md`) are now tracked and push to GitHub. Works locally today; now also works across machines and teams.
+
+**Routing transparency:**
+- Router announces its decision before executing any workflow: `→ {WORKFLOW} workflow (signals: {matched keywords})`. One line, zero bloat. Makes the black-box routing legible to users.
+
+**CC10X-018 root cause confirmed — platform issue:**
+- Investigated via Claude Code docs. AskUserQuestion empty on first 1-3 calls is a Claude Code platform-level warm-up race condition, not a cc10x bug. No reliable mitigation exists from inside cc10x. Reported pattern for Anthropic to fix. Retry guard remains the only defensive option.
+
 ## [7.4.1] - 2026-03-02
 
 ### Fixed — Parent workflow tasks left as stale pending after workflow completion
