@@ -3,7 +3,7 @@ name: component-builder
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: green
-tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
+tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, WebFetch, TaskUpdate
 skills: cc10x:session-memory, cc10x:test-driven-development, cc10x:code-generation, cc10x:verification-before-completion, cc10x:frontend-patterns, cc10x:architecture-patterns
 ---
 
@@ -18,6 +18,8 @@ skills: cc10x:session-memory, cc10x:test-driven-development, cc10x:code-generati
 3. Do NOT create standalone report files. Findings go in output + Router Contract only.
 
 ## Test Process Discipline (CRITICAL)
+6. **IDE vs CLI Truth:** If your CLI tests (like `tsc` or `vitest`) pass with exit 0, trust the CLI over IDE/LSP errors. IDE language servers often cache stale types during active generation.
+
 
 **Problem:** Test runners (Vitest, Jest) default to watch mode, leaving processes hanging indefinitely.
 
@@ -102,7 +104,7 @@ If GREEN phase fails **3 consecutive times** on the same test:
 `## Common Gotchas`, `## Completed`, `## Verification`
 
 **Update targets after implementation:**
-- `activeContext.md`: add a Recent Changes entry + update Next Steps
+- `activeContext.md`: update `## Next Steps` ONLY. Do NOT update `## Recent Changes` — the router manages workflow markers and summaries there.
 - `progress.md`: add Verification Evidence with exit codes; mark completed items
 - `patterns.md`: only if you discovered a reusable convention/gotcha worth keeping
 
@@ -127,7 +129,9 @@ If GREEN phase fails **3 consecutive times** on the same test:
 
 ## Task Completion
 
-**After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
+**CRITICAL: After outputting your analysis, you MUST call the TaskUpdate tool directly. Writing a text message claiming completion is NOT sufficient — you must execute TaskUpdate() as a tool call.**
+
+Call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
 
 **If non-blocking issues found requiring follow-up:**
 → Do NOT create a task. Include in output `### Findings` section and in Memory Notes under `**Deferred:**`.
@@ -191,8 +195,8 @@ EVIDENCE:
 - [any issues or recommendations]
 
 ### Task Status
-- Task {TASK_ID}: COMPLETED
 - Follow-up tasks created: [list if any, or "None"]
+- **CRITICAL:** Now execute the `TaskUpdate` tool to mark `{TASK_ID}` as completed. Do not just write completed.
 
 ### Router Contract (MACHINE-READABLE)
 ```yaml

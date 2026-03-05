@@ -1,5 +1,77 @@
 # Changelog
 
+## [8.3.0] - 2026-03-04
+
+### Root cause fixes: PLAN-START marker displacement, OBS-15 minimal output, inline verification fallback
+
+**3 root-cause fixes** that have persisted through every stress test v3–v6.
+
+#### Fixed
+- **Issue #4 — PLAN-START marker displacement** (router Chain Execution Loop): After `CC10X planner:` task completes, router now re-writes `[PLAN-START: wf:{N}]` marker to top of `## Recent Changes`. The planner's Two-Step Save writes entries above the router-written marker, displacing it and breaking freshness trimming. Router already had identical restoration for `component-builder` (BUILD-START) and `bug-investigator` (DEBUG-RESET). Planner restoration was simply missing.
+- **OBS-15 — Minimal output: SINGLE FINAL RESPONSE RULE** (code-reviewer, silent-failure-hunter, integration-verifier): Root cause identified — `Task()` returns only the agent's LAST response turn, not intermediate messages. Agents were writing analysis in intermediate turns, then outputting only minimal text (`"Task N: COMPLETED."`) in their final turn — the router received only that. Fix: all 3 agents now have explicit instruction to batch all tool calls first (zero text output during tool turns), then produce ONE FINAL RESPONSE containing heading + full analysis + Memory Notes + Task Status + TaskUpdate call.
+- **OBS-15 — Minimal output: Inline verification fallback** (router Step 3): Replaced blind `APPROVE/CLEAN/PASS` safe-default with `INLINE VERIFICATION REQUIRED`. For integration-verifier: runs `npx vitest run` (fallback: `npm test`) inline via Bash and checks exit code. For code-reviewer/hunter: runs `git diff HEAD --name-only` + empty-catch grep on changed files. Actual quality gate instead of silent bypass — was effectively letting all bad code through whenever agents returned minimal output (which is 100% of the time in current stress tests).
+
+---
+
+## [8.2.0] - 2026-03-04
+
+### Design File Amnesia fix, JUST_GO Phase 2 labels, TaskUpdate CRITICAL wording, phantom contract removal, README troubleshooting, escape hatch removal from all 6 agent templates
+
+**11 changes** across router, brainstorming skill, 6 agent files, and README.
+
+#### Fixed
+- **R1 — Design File Amnesia** (router PLAN step 6): PLAN step 2 captured `design_file` before brainstorming ran. Brainstorming writes fresh design path to memory at step 3. Step 6 now re-reads `activeContext.md ## References` post-brainstorming to get the updated `design_file` value. Eliminates null design path passed to planner when brainstorming creates a new design file.
+- **R2 — JUST_GO Phase 2 collision** (brainstorming/SKILL.md): Phase 2 AskUserQuestion options had no `(Recommended)` label — JUST_GO auto-default found nothing → undefined. Added `(Recommended)` to one option per each of the 4 Phase 2 questions.
+- **R3 — TaskUpdate escape hatch (component-builder)**: Added CRITICAL warning at Task Completion section: writing "Task {TASK_ID}: COMPLETED" in text output is NOT sufficient — TaskUpdate tool must execute.
+- **R4 — Phantom Router Contract** (brainstorming/SKILL.md): brainstorming runs as `Skill()` (inline), not `Task()` (subprocess). Router Contract YAML was never parsed by Text-Based Verdict Extraction. Removed misleading STATUS/DESIGN_FILE/BLOCKING YAML block.
+- **R5 — README troubleshooting section**: Added `### "Unknown skill cc10x:cc10x-router"` section with `/plugins enable cc10x` recovery instructions.
+- **Escape hatch removal — all 6 agent templates**: Removed `- Task {TASK_ID}: COMPLETED` bare text line from `### Task Status` output template in all 6 agent files (bug-investigator, code-reviewer, component-builder, integration-verifier, planner, silent-failure-hunter). Replaced with explicit CRITICAL tool invocation reminder.
+- **Task Completion strengthening** (bug-investigator, code-reviewer): Added explicit CRITICAL wording in `## Task Completion` — tool call required, text output alone is NOT sufficient.
+
+---
+
+## [8.0.3] - 2026-03-04
+
+### Step 6 Hybrid Routing Matrix — readability refactor + ~30 line trim
+
+**1 structural change** based on external AI audit + parallel strict/open-minded agent analysis.
+
+#### Changed
+- **Step 6 hybrid table (router)**: Replaced 158-line pure-narrative validation rules section with a hybrid structure: PRE-PROCESSING block (Rule 0 + Circuit Breaker) → 11-row Conditional Routing Matrix → Detailed Logic prose under `###` headers. All logic preserved verbatim. Satisfies 4 strict-agent requirements: PRE-PROCESSING labeled as "ALWAYS RUNS FIRST", Circuit Breaker explicitly called out in rule 1a and 1b Action cells, Rule 2 (Conflict check) is a distinct table row, REVERT gate called out in rule 2d Action cell. Estimated savings: ~30 lines. Readability: routing decisions now scannable in seconds via the matrix.
+
+---
+
+## [8.0.2] - 2026-03-04
+
+### Re-Review Loop guard, duplicate verifier fix, Circuit Breaker cumulative count
+
+**3 orchestration fixes** identified via external AI audit and confirmed by parallel sub-agent analysis.
+
+#### Fixed
+- **Re-Review Loop — Original Reviewer Guard** (router Re-Review Loop): Added PRE-CHECK before Step 0. When a REM-FIX completes, the loop now checks whether the original `CC10X code-reviewer:` task has already run (status = "completed"). If not yet completed, the entire Re-Review Loop is skipped — the normal execution loop will invoke the reviewer once its blockers clear. Prevents premature re-reviewer spawn in QUICK mode builds and component-builder self-remediation scenarios where the original reviewer was never run.
+- **Duplicate integration-verifier race condition** (router Re-Review Loop Step 3): Before creating a new `re_verifier` task, Step 3 now checks if an existing `CC10X integration-verifier:` task is still `pending` (unblocked by REM-FIX completion). If found, reuses it and adds the re-reviewer as a blocker — eliminating the race where both the original unblocked verifier and a newly-created re_verifier ran in parallel.
+- **Circuit Breaker — cumulative count** (router Rule 1a): Changed from counting only `status IN [pending, in_progress]` REM-FIX tasks (which never exceeded 1 due to sequential execution) to counting ALL REM-FIX tasks in the current workflow scoped by `wf:{parent_task_id}`. Breaker now fires at 3 total fix attempts across the workflow lifecycle, regardless of whether prior fixes have already completed.
+
+---
+
+## [8.0.1] - 2026-03-04
+
+### Stress-test fixes — heading-first, marker restoration, stale design guard, Critical Issues section
+
+**10 targeted fixes** from two stress test runs on v8.0.0.
+
+#### Fixed
+- **Heading-first output** (`code-reviewer`, `silent-failure-hunter`, `integration-verifier`): Agents now output the machine-readable verdict heading (`## Review: Approve`, `## Error Handling Audit: CLEAN`, `## Verification: PASS`) as the very first text, before any tool calls. Eliminates "Task N: COMPLETED" as the only output when truncation happens — router can extract STATUS from first 5 lines regardless of subsequent truncation.
+- **BUILD-START/DEBUG-RESET marker restoration** (router Chain Execution Loop): After `component-builder` or `bug-investigator` completes, router immediately re-writes `[BUILD-START: wf:N]` or `[DEBUG-RESET: wf:N]` into `## Recent Changes`. Fixes regression where WRITE agents overwrote the marker, breaking Memory Update freshness trimming.
+- **Stale design reference guard** (router PLAN step 2): Design file path contains a `YYYY-MM-DD` prefix. If that date ≠ today → set `design_file = N/A` and log "Design reference from prior session cleared". Prevents prior-session design from polluting a new PLAN workflow.
+- **`### Critical Issues` section** added to `integration-verifier.md` Output template: Router's text extraction scans for this section to determine `BLOCKING`. Old template used `Blockers:` inline in Summary — invisible to router Step 2. New section is machine-readable.
+- **Integration-verifier YAML guard**: Added explicit "DO NOT include Router Contract YAML" to both Process step 0 and CONTRACT note. Verifier was still emitting YAML despite being a READ-ONLY agent (template bottom had no explicit prohibition).
+- **Planner TaskUpdate tool-call guard** (`planner.md`): Strengthened from "call TaskUpdate" to "you MUST call the TaskUpdate **tool** directly — writing 'Task N: COMPLETED' in text is NOT sufficient."
+- **JUST_GO `## Session Settings` template** (`session-memory/SKILL.md`): Added `## Session Settings` section with `# AUTO_PROCEED: false` to the `activeContext.md` template. Section was documented in router but absent from the template — new memory files couldn't use JUST_GO without manual edit.
+- **Stale evaluation order labels** (router): Removed `2e` and `2f-ii` from EVALUATION ORDER list and note. Rules `2e` and `2f-ii` were removed in an earlier version but labels lingered in the evaluation order text.
+
+---
+
 ## [8.0.0] - 2026-03-04
 
 ### Radical Simplification — Remove Router Contract YAML from read-only agents

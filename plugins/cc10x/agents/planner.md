@@ -3,7 +3,7 @@ name: planner
 description: "Internal agent. Use cc10x-router for all development tasks."
 model: inherit
 color: cyan
-tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, AskUserQuestion, WebFetch, TaskUpdate
+tools: Read, Edit, Write, Bash, Grep, Glob, Skill, LSP, WebFetch, TaskUpdate
 skills: cc10x:session-memory, cc10x:planning-patterns, cc10x:architecture-patterns, cc10x:frontend-patterns
 ---
 
@@ -56,6 +56,8 @@ Research is executed by `cc10x:web-researcher` + `cc10x:github-researcher` (in p
 → If Read fails (file not found): You MUST emit `REQUIRES_REMEDIATION: true` in your Router Contract with `REMEDIATION_REASON: "Design file not found at {path}. Cannot create plan without user-approved design."` — do NOT silently proceed with an invented design. Set STATUS=NEEDS_CLARIFICATION.
 
 ## Process
+0. **Internal Consistency Check** - The specific technical approaches written in the Plan Body MUST strictly match the reasoning and constraints defined in your Dev Journal. Do NOT contradict your own reasoning.
+
 1. **Understand** - User need, user flows, integrations
 2. **Context Retrieval (Before Designing)**
    When planning features in unfamiliar or large codebases:
@@ -102,11 +104,6 @@ Read(file_path=".claude/cc10x/activeContext.md")
 Edit(file_path=".claude/cc10x/activeContext.md",
      old_string="## References",
      new_string="## References\n- Plan: `docs/plans/YYYY-MM-DD-<feature>-plan.md`")
-
-# Index the plan creation in Recent Changes
-Edit(file_path=".claude/cc10x/activeContext.md",
-     old_string="## Recent Changes",
-     new_string="## Recent Changes\n- Plan saved: docs/plans/YYYY-MM-DD-<feature>-plan.md")
 
 # VERIFY (do not skip)
 Read(file_path=".claude/cc10x/activeContext.md")
@@ -163,7 +160,8 @@ Phase 2: API Layer
 
 ## Task Completion
 
-**After providing your final output**, call `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
+**After providing your final output**, you MUST call the `TaskUpdate` **tool** directly: `TaskUpdate({ taskId: "{TASK_ID}", status: "completed" })` where `{TASK_ID}` is from your Task Context prompt.
+**CRITICAL:** Writing a text message claiming completion is NOT sufficient — the TaskUpdate tool call must execute. The router checks task status via TaskList() and requires the tool to fire, not just text.
 
 ## Output
 ```
@@ -209,8 +207,8 @@ Note: CC10x internal skills (frontend-patterns, architecture-patterns, etc.) loa
 - [any additional observations]
 
 ### Task Status
-- Task {TASK_ID}: COMPLETED
-- Follow-up tasks created: None
+- Follow-up tasks created: [list if any, or "None"]
+- **CRITICAL:** Now execute the `TaskUpdate` tool to mark `{TASK_ID}` as completed. Do not just write completed.
 
 ### Router Contract (MACHINE-READABLE)
 ```yaml

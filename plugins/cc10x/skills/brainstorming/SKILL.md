@@ -69,30 +69,94 @@ Bash(command="ls src/ 2>/dev/null || ls . 2>/dev/null || echo 'Empty project'")
 
 ### Phase 2: Explore the Idea (One Question at a Time)
 
-**Use `AskUserQuestion` tool** - provides multiple choice options, better UX than text questions.
+**MANDATORY: Call AskUserQuestion for EACH of the 5 questions below. Do NOT describe or narrate these as text — CALL THE TOOL immediately and wait for each answer before asking the next.**
 
-**Ask questions sequentially, not all at once.**
+**Q1 — Call AskUserQuestion NOW:**
+```
+AskUserQuestion({
+  questions: [{
+    question: "What problem does this solve for users?",
+    header: "Purpose",
+    multiSelect: false,
+    options: [
+      { label: "New feature", description: "Adding new functionality" },
+      { label: "Bug fix", description: "Fixing broken behavior" },
+      { label: "Refactor", description: "Improving existing code structure" },
+      { label: "Something else", description: "I'll describe it" }
+    ]
+  }]
+})
+```
 
-**Question 1: Purpose**
-> "What problem does this solve for users?"
+**Q2 — Call AskUserQuestion NOW (after Q1 answered):**
+```
+AskUserQuestion({
+  questions: [{
+    question: "Who will use this?",
+    header: "Users",
+    multiSelect: false,
+    options: [
+      { label: "Developers", description: "Engineering team or API consumers" },
+      { label: "End users", description: "People using the product UI" },
+      { label: "Admins", description: "Administrative or ops users" },
+      { label: "Internal team", description: "Internal tooling only" }
+    ]
+  }]
+})
+```
 
-Options format:
-> A. [Specific use case 1]
-> B. [Specific use case 2]
-> C. Something else (please describe)
+**Q3 — Call AskUserQuestion NOW (after Q2 answered):**
+```
+AskUserQuestion({
+  questions: [{
+    question: "How will we know this works well?",
+    header: "Success",
+    multiSelect: false,
+    options: [
+      { label: "Tests pass", description: "Automated tests verify behavior" },
+      { label: "Performance target met", description: "Specific speed or throughput goal" },
+      { label: "User completes task", description: "End-to-end user flow works" },
+      { label: "Describe it", description: "I'll type my own success criteria" }
+    ]
+  }]
+})
+```
 
-**Question 2: Users**
-> "Who will use this feature?"
+**Q4 — Call AskUserQuestion NOW (after Q3 answered):**
+```
+AskUserQuestion({
+  questions: [{
+    question: "What limitations or requirements exist?",
+    header: "Constraints",
+    multiSelect: true,
+    options: [
+      { label: "No constraints", description: "No special requirements" },
+      { label: "Performance", description: "Speed, memory, or throughput targets" },
+      { label: "Security", description: "Auth, permissions, or data protection" },
+      { label: "Time / deadline", description: "Must ship by a specific date" }
+    ]
+  }]
+})
+```
 
-**Question 3: Success Criteria**
-> "How will we know this works well?"
+**Q5 — Call AskUserQuestion NOW (after Q4 answered):**
+```
+AskUserQuestion({
+  questions: [{
+    question: "What's the scope of this change?",
+    header: "Scope",
+    multiSelect: false,
+    options: [
+      { label: "Single module", description: "One focused area of the codebase (Recommended)" },
+      { label: "Single file", description: "Isolated to one file" },
+      { label: "Full feature", description: "Multiple files, end-to-end" },
+      { label: "Cross-cutting", description: "Touches many parts of the system" }
+    ]
+  }]
+})
+```
 
-**Question 4: Constraints**
-> "What limitations or requirements exist?"
-> (Performance, security, compatibility, timeline)
-
-**Question 5: Scope**
-> "What's explicitly OUT of scope for this?"
+**After all 5 questions answered:** Proceed to Phase 3 with collected answers.
 
 ### Phase 3: Explore Approaches
 
@@ -336,7 +400,7 @@ Edit(file_path=".claude/cc10x/activeContext.md",
 # Make the next step explicit
 Edit(file_path=".claude/cc10x/activeContext.md",
      old_string="## Next Steps",
-     new_string="## Next Steps\n1. Decide: plan vs build (design at docs/plans/YYYY-MM-DD-<feature>-design.md)")
+     new_string="## Next Steps\n1. [BRAINSTORM-DONE] Planner agent pending — design at docs/plans/YYYY-MM-DD-<feature>-design.md")
 
 # Step 4: VERIFY (do not skip)
 Read(file_path=".claude/cc10x/activeContext.md")
@@ -375,13 +439,3 @@ Before completing brainstorming:
 - [ ] Multiple approaches explored
 - [ ] Design validated incrementally
 - [ ] Document saved
-
-## Router Contract (MACHINE-READABLE)
-```yaml
-STATUS: COMPLETE | INCOMPLETE
-DESIGN_FILE: "[absolute path or null]"
-BLOCKING: [true if INCOMPLETE, false if COMPLETE]
-REQUIRES_REMEDIATION: [true if DESIGN_FILE is null]
-REMEDIATION_REASON: null | "Design file save failed — path: {expected_path}"
-```
-**CONTRACT RULE:** STATUS=COMPLETE requires DESIGN_FILE is non-null and file exists at that path.
