@@ -30,7 +30,7 @@ ORCHESTRATION_INVESTIGATION.md
 .claude/*
 !.claude/cc10x
 .claude/cc10x/*
-!.claude/cc10x/*.md
+# Keep runtime memory local-only. These files are user/session state, not product files.
 
 # Dependency directories
 node_modules/
@@ -147,6 +147,7 @@ push_v3.1.py
 *.py
 !plugins/cc10x/hooks/*.sh
 !plugins/cc10x/scripts/*.sh
+!plugins/cc10x/scripts/*.py
 
 # ========================================
 # BACKUP & ARCHIVE FILES

@@ -1,5 +1,65 @@
 # Changelog
 
+## [9.1.1] - 2026-03-07
+
+### MCP startup warning fix
+
+#### Fixed
+- Removed shipped plugin MCP config from `plugins/cc10x/.mcp.json` so CC10X no longer triggers startup warnings when Bright Data or Octocode environment variables are not configured.
+- Changed CC10X MCP support from plugin-bundled config to **optional user-configured Claude Code MCP servers**. The recommended server names remain `brightdata` and `octocode`.
+- Updated router/docs/audit language so MCP acceleration is documented as user-configured and fallback-safe instead of plugin-shipped.
+
+## [9.1.0] - 2026-03-07
+
+### Publication polish: intent contracts, BDD evidence, proof-of-work artifacts, harness audit
+
+#### Changed
+- Upgraded PLAN output to require a compact intent/spec header with goal, non-goals, constraints, acceptance criteria, named scenarios, open decisions, and recommended defaults before implementation phases.
+- Standardized BDD-style scenario evidence across `component-builder`, `bug-investigator`, and `integration-verifier` so workflows can reconcile named scenarios with command-level proof.
+- Expanded workflow artifacts to describe intent, evidence, quality/convergence state, remediation history, and append-only workflow events.
+- Tightened planner, builder, investigator, verifier, reviewer, and research prompts to reduce low-signal narrative and increase structured evidence, decisions, assumptions, and confidence calibration.
+- Standardized hook log fields (`wf`, `phase`, `task_id`, `agent`, `event`, `decision`, `reason`) so stress-test diagnostics no longer depend on rereading full chats.
+
+#### Added
+- `plugins/cc10x/scripts/cc10x_harness_audit.py` — internal publication-safety audit for manifest/docs version drift, hook/MCP references, router section coverage, metadata field consistency, and router-consumed agent contract fields.
+- Router guidance for append-only workflow event logs under `.claude/cc10x/workflows/{wf}.events.jsonl`.
+
+#### Fixed
+- Adaptive PLAN gating is now explicit: trivial work may build directly, while complex or ambiguous work must pass through intent/spec planning.
+- Research synthesis and degraded-confidence handling are now consistent across planner, investigator, and the research agents.
+
+## [9.0.0] - 2026-03-07
+
+### Plugin-native packaging + workflow-scoped research/runtime alignment
+
+#### Changed
+- Moved shipped CC10X runtime hooks into the plugin bundle under `plugins/cc10x/hooks/hooks.json`.
+- Added plugin-bundled hook scripts under `plugins/cc10x/scripts/` referenced via `${CLAUDE_PLUGIN_ROOT}`.
+- Added plugin-native optional MCP config under `plugins/cc10x/.mcp.json` for Bright Data and Octocode acceleration.
+- Clarified that repo-local `.claude/settings.json` is not part of the shipped plugin contract.
+- Router research path now treats Bright Data and Octocode as optional accelerators with built-in fallbacks and explicit research quality metadata.
+- Workflow artifacts now carry research backend history and quality so resume and downstream prompts do not depend on transient output recovery.
+
+#### Fixed
+- Restored BUILD scope-decision resume for mixed CRITICAL + HIGH findings via a `[SCOPE-DECISION-PENDING: wf:...]` marker and follow-up answer handling.
+- Restored scope-aware re-hunt instructions so `ALL_ISSUES` and `CRITICAL_ONLY` remediation paths do not collapse into the same re-audit behavior.
+- Corrected plugin/docs version truth to `9.0.0`.
+
+## [8.5.0] - 2026-03-05
+
+### Fix 1: READ-ONLY task completion explicit gate + Fix 2b: CRITICAL+HIGH scope selection
+
+**2 stress-test root-cause fixes** targeting task completion reliability and re-hunt scope accuracy.
+
+#### Fixed
+- **Fix 1 — READ-ONLY task completion gate** (router Chain Execution Loop step 3): The `TaskUpdate(completed)` fallback for READ-ONLY agents (code-reviewer, silent-failure-hunter, integration-verifier) was buried as prose in step 3, easily skipped under cognitive load. Replaced with an explicit **3-GATE** section that runs as the MANDATORY FIRST STEP before verdict extraction. Gate: (1) TaskList → find agent task, (2) if in_progress → check blockedBy, (3) blockedBy empty → execute TaskUpdate immediately. Preserves INV-005 (blockedBy exclusion for SELF_REMEDIATED protocol).
+- **Fix 2b — HIGH_ISSUES extraction** (router Step 2): Added scan for `### High` section headers in agent output to count HIGH_ISSUES separately from CRITICAL_ISSUES. Required for Rule 1a-SCOPE condition evaluation.
+- **Fix 2b — Scope Decision Resume section** (router, before routing): New section that runs after active task check, before routing. Detects `[SCOPE-DECISION-PENDING: ...]` marker in `activeContext.md ## Decisions`. If found: reads user's plain-text reply (`critical only` / `all issues`), clears marker, creates scope-aware REM-FIX task (with `REHUNT_SCOPE:` in description), blocks downstream tasks, STOPs.
+- **Fix 2b — Rule 1a-SCOPE** (router Conditional Routing Matrix): New rule inserted before Rule 1a. Fires when BLOCKING=true AND HIGH_ISSUES>0 AND BUILD workflow AND initial phase (not re-review/re-hunt). Action: output plain-text scope question (no AskUserQuestion), write `[SCOPE-DECISION-PENDING]` marker to memory, STOP. Answer is read on the next turn by Scope Decision Resume.
+- **Fix 2b — Scope-aware re-hunt description** (Re-Review Loop step 2): Re-hunt task description now reads `REHUNT_SCOPE:` from the completed REM-FIX task description. ALL_ISSUES: "FULL re-audit of ALL issue categories (CRITICAL and HIGH)." CRITICAL_ONLY: "verify CRITICAL issue was resolved; HIGH issues deferred." Default (no marker): ALL_ISSUES. Fixes root cause: re-hunt was interpreting "Re-hunt for silent failures after REM-FIX" as "verify CRITICAL only", silently ignoring 5 HIGH issues that remained after the CRITICAL fix.
+
+---
+
 ## [8.3.0] - 2026-03-04
 
 ### Root cause fixes: PLAN-START marker displacement, OBS-15 minimal output, inline verification fallback
