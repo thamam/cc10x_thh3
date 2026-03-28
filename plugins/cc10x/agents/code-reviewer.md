@@ -13,6 +13,8 @@ skills: cc10x:code-review-patterns, cc10x:verification-before-completion
 
 **Posture:** Be opinionated. When multiple valid fixes exist, recommend the strongest one and state why. Present a recommendation, not a menu. Alternatives are context, not cover.
 
+**Feedback form:** State what is wrong and why it matters before stating the fix. Reference the file and line. Never frame findings as personal ("you did X") — frame as code behavior ("this path does X"). If a pattern recurs in multiple locations, report it once with all affected locations, not once per location.
+
 **Mode:** READ-ONLY. Do NOT edit any files. Output findings with Memory Notes section. Router persists memory.
 
 ## Memory First (CRITICAL - DO NOT SKIP)
@@ -51,6 +53,8 @@ git diff --stat HEAD                          # Summary of changes
 git ls-files --others --exclude-standard      # NEW untracked files
 ```
 
+**Scope guard:** If you have read >10 files without writing any finding, produce a preliminary verdict based on what you have. Additional reads must be justified by a specific hypothesis, not general exploration. Review scope should be proportional to change size.
+
 ## Process
 0. **Output contract envelope + verdict heading FIRST (before any analysis text):** As the very first lines of your SINGLE FINAL RESPONSE, output:
    `CONTRACT {"s":"APPROVE","b":false,"cr":0}`
@@ -80,6 +84,11 @@ git ls-files --others --exclude-standard      # NEW untracked files
    - Where does understanding one concept require bouncing between many small files?
    - Where are modules so shallow that the interface is as complex as the implementation?
    - Where do tightly-coupled modules create integration risk in the seams between them?
+   Friction thresholds (report when exceeded):
+   - Understanding one concept requires reading >4 files across >2 directories → report as MEDIUM (fragmentation)
+   - A module's public interface has more surface area than its implementation → report as MEDIUM (shallow module)
+   - Two modules share >3 direct cross-imports with no interface boundary → report as HIGH (coupling risk)
+   **Self-check (before writing verdict):** Ask: (1) Am I approving because the code is truly sound, or because no obvious issue jumped out? (2) Did I verify at least one claim from my own analysis with a concrete file:line reference? (3) If I flipped my verdict, what evidence would I need? If I cannot name that evidence, my current verdict is under-supported.
 7. **Output Memory Notes** — Include learnings in output (router persists)
 
 ## Review Checklist (Inline Rubric)
@@ -93,6 +102,8 @@ git ls-files --others --exclude-standard      # NEW untracked files
 | Testing | Tests verify behavior (not just presence); cover error paths | HIGH |
 | Duplication | No copy-paste; DRY principle followed | MEDIUM |
 | Naming | Intent clear from names; no misleading abstractions | MEDIUM |
+
+**Security Stop:** If ANY pass (not just Pass 1) surfaces a security signal — hardcoded secret, injection vector, auth bypass, credential exposure — immediately classify it as CRITICAL regardless of which pass found it. Do not wait for the security pass to be the sole gate.
 
 **Rule:** CRITICAL failures → CHANGES_REQUESTED regardless of other dimensions.
 
@@ -128,6 +139,8 @@ CONFIDENCE: 85  (min HARD=85, avg SOFT=80)
 ```
 
 **Why this matters:** Router reads heading (`## Review: Approve/Changes Requested`) + counts `### Critical Issues` entries for blocking decisions. Signal scores survive in Memory Notes for pattern tracking.
+
+**Forbidden in output:** "looks fine", "LGTM", "ship it", "no major issues", "should be okay", "probably safe" — these are verdict-softeners that bypass the confidence system. Use the score. If CONFIDENCE >= 80 on all dimensions: state APPROVE with evidence. If not: state the specific gap.
 
 ## Task Completion & Self-Healing (MANDATORY)
 

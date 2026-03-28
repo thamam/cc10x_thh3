@@ -187,6 +187,18 @@ grep -rn "console\.log" --include="*.ts" --include="*.tsx" src/
 | **Primitive obsession** | Introduce value objects |
 | **New code reveals old problems** | Flag for follow-up (do not expand review scope) |
 
+### Sloppy Pattern Scan
+
+After structural quality review, scan for low-effort issues that accumulate into tech debt:
+
+| Pattern | Action |
+|---------|--------|
+| Inconsistent naming (camelCase mixed with snake_case in same file) | Flag as MEDIUM |
+| Dead imports (`import X` where X is unused) | Flag as LOW |
+| Commented-out code blocks (>3 lines) | Flag as LOW |
+| Console.log/print left in non-debug code | Flag as MEDIUM |
+| Copy-pasted code blocks with minor variations | Flag as MEDIUM (cite both locations) |
+
 ## Type Design Red Flags (Typed Languages)
 
 | Anti-Pattern | Problem | Fix |
@@ -205,6 +217,19 @@ grep -rn "console\.log" --include="*.ts" --include="*.tsx" src/
 | Catch-log-continue | User never sees the failure |
 | Retry exhaustion without notice | Fails silently after N attempts |
 | Fallback chains without explanation | Masks root cause with alternatives |
+
+**Wrong/Right — Silent optional chaining:**
+```typescript
+// WRONG: silently swallows null user
+const name = user?.profile?.name ?? 'Unknown';
+
+// RIGHT: log the gap, then degrade
+const name = user?.profile?.name;
+if (!name) {
+  logger.warn('user profile missing name', { userId: user?.id });
+}
+return name ?? 'Unknown';
+```
 
 ## Clarity Over Brevity
 
@@ -408,6 +433,19 @@ After requesting changes:
 4. **Approve or request more changes** - Repeat if needed
 
 **Never approve without verifying fixes work.**
+
+## Partial Phase Reviews
+
+When reviewing code from a single phase of a multi-phase plan:
+
+| Scope question | Rule |
+|----------------|------|
+| Review only this phase's changes? | YES — do not expand scope to future phases |
+| Flag problems in untouched code discovered during review? | Note for follow-up; do not block this phase |
+| Verify phase exit criteria? | YES — the plan defines exit criteria per phase; verify those, not the final product |
+| Review integration points with future phases? | Flag interface concerns only — do not require future-phase implementation |
+
+**Key principle:** A partial-phase review succeeds when the phase exit criteria are met and no regressions exist. "Incomplete feature" is not a valid rejection reason if the plan has more phases.
 
 ## Final Check
 

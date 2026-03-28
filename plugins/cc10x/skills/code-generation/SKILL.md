@@ -194,6 +194,7 @@ If you find yourself:
 - Not handling edge cases ("happy path only")
 - Creating abstractions for one use case
 - Adding configuration options not requested
+- Using magic numbers or hardcoded thresholds instead of named constants or derived formulas
 - Writing comments instead of clear code
 - Multiple valid approaches exist but not presenting options
 
@@ -209,6 +210,7 @@ If you find yourself:
 | "I'll add docs later" | Code should be self-documenting. Write clear code now. |
 | "It's just a quick prototype" | Prototypes become production. Write it right. |
 | "I know a better way" | The codebase has patterns. Follow them. |
+| "I understand enough to start" | Partial understanding produces wrong code. Read the full spec, pattern, or reference before writing. |
 
 ## When to Present Multiple Options
 
@@ -223,6 +225,22 @@ If you find yourself:
 - User request is specific (no ambiguity)
 
 **When multiple valid approaches exist:** Prefer the simplest option that matches project patterns. If the choice is high-risk and not already decided by the prompt or plan, surface the alternatives in your output and return control to the router instead of questioning the user directly.
+
+## When to Abstract
+
+Abstraction has a cost. Only introduce it when concrete evidence justifies it:
+
+| Signal | Action |
+|--------|--------|
+| Pattern seen in 1 example only | Do not extract. This is overfitting to a single case. |
+| Same logic in 1 place | Do not abstract. Inline is fine. |
+| Same logic in 2 places | Note the duplication. Do not abstract yet. |
+| Same logic in 3+ places | Extract. The pattern is proven. |
+| 1-2 line change | Inline edit. No helper function needed. |
+| Parameter variations only | Extract function with parameters. |
+| Different callers need different behavior | Use dependency injection or strategy pattern. |
+
+**Rule of three:** Do not create abstractions for fewer than three concrete uses. Premature abstraction is harder to undo than duplication.
 
 ## Code Quality Checklist
 

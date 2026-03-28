@@ -1,5 +1,70 @@
 # Changelog
 
+## [10.1.15] - 2026-03-27
+
+### Hook expansion — 4 audit-only hooks for persistence and telemetry
+
+4 new Claude Code hook events added. All audit-only — zero blocking, zero context injection, zero routing decisions. Router remains sole orchestration authority.
+
+#### Added
+- **PreCompact hook:** Saves workflow state snapshot (UUID, phase cursor, plan file) to `precompact-state.json` before context compaction destroys memory. Completes the PreCompact→PostCompact lifecycle bracket.
+- **Stop hook:** Saves same workflow state snapshot on every session stop. Defensive `stop_hook_active` check prevents any interaction with continuation stops. Never blocks.
+- **StopFailure hook:** Logs API failures (rate limits, auth errors, server errors) to workflow event log. Async fire-and-forget. Output/exit code ignored per Claude Code spec.
+- **InstructionsLoaded hook:** Audit trail for instruction file loads (CLAUDE.md, rules, skills). Logs file path, memory type, and load reason. Async.
+
+#### Changed
+- **hooks.json:** 6 → 10 event entries
+- **hook-mode.json:** 6 → 10 mode keys (all "audit")
+- **Router SKILL.md Section 2a:** Hook policy updated with 4 new bullets
+- **hooks/README.md:** Hook inventory updated
+
+#### Unchanged
+- Zero YAML contract fields modified. Zero state machine transitions. Zero workflow graphs. Zero blocking hooks. All existing 6 hooks unchanged. hooklib.py not modified. Router remains sole orchestration authority.
+
+## [10.1.14] - 2026-03-27
+
+### Multi-repo harmony integration — 29 patterns from 11 reference repos
+
+396 patterns extracted from anthropics-skills, ralph-claude-code, babysitter, claude-code-harness, everything-claude-code, superpowers, wshobson-agents, get-shit-done, system-prompts, and symphony. 3-phase harmony pipeline (DNA fingerprint → layer mappers → cross-layer dedup) yielded 29 certified NATIVE patterns at 7.3% acceptance rate.
+
+#### Changed
+- **Router:** Stale training data `[EASY TO MISS]` annotation. Completion proof strengthening with anti-assertion examples. Parallel agent write-dependency isolation rule. Subagent context isolation (no conversation inheritance). Analysis paralysis guard on trivial scope. Context fidelity for verbatim user decisions. Professional objectivity hard rule.
+- **Integration Verifier:** Claim extraction from prior agents (MANDATORY). Test tampering detection (.skip/.only in test diffs). Verification run cap (15-command limit). Environment escape hatch (ENVIRONMENT vs code failures). Extended rationalization prevention (3 new forbidden phrases).
+- **Code Reviewer:** Security stop protocol (cross-pass escalation to CRITICAL). Red flags self-check (step 6.5 before verdict). Forbidden responses list (verdict-softener ban). Scope guard (10-file read cap).
+- **Silent Failure Hunter:** Adversarial posture directive ("assume errors are present").
+- **Component Builder:** Build/lint loop cap (3-strike rule for recurring lint/type errors).
+- **Planning Patterns:** "Plans are prompts" principle. Scope decomposition trigger (3+ files or >1 sentence = split). Cross-phase data contracts in completeness gate. Exit criteria by example.
+- **Code Generation:** Anti-overfit row in When to Abstract. Magic numbers red flag. Partial understanding rationalization row.
+- **TDD:** Near-miss negative tests table (boundary, wrong type, missing field, expired state). Pre-run anti-pattern check (4-point gate before test suite).
+- **Code Review Patterns:** Sloppy pattern scan table (5 low-effort issue patterns).
+- **Brainstorming:** Dream extraction questioning (optional Q6). Out-of-scope discovery (Q7). Questioning anti-patterns (leading, compound, vague acceptance).
+
+#### Unchanged
+- Zero YAML contract fields modified. Zero state machine transitions. Zero workflow graphs. Zero hook definitions. Zero new agents or skills. All existing hard rules preserved. No numbered step reordering. No frontmatter changes.
+
+## [10.1.13] - 2026-03-27
+
+### Ruflo harmony integration — prompt engineering from ruvnet/claude-flow
+
+#### Changed
+- **Web Researcher:** Source quality tiers (high/medium/low confidence signals). Query formulation heuristics with "when to stop" signal (3 sources agree or 6-call cap).
+- **GitHub Researcher:** Search strategy ladder (packageSearch first). Repo quality signals (stars, activity, maintenance). Version matching guidance.
+- **Silent Failure Hunter:** Multi-language red flags table (Python, Go, Java, Rust, Shell). Scoping heuristic (changed files first, expand only if critical).
+- **Code Reviewer:** Friction scan thresholds (>4 files = fragmentation, >3 cross-imports = coupling risk). Feedback form directive (code behavior framing, deduplicate recurring findings).
+- **Integration Verifier:** Rollback decision heuristics (5 ordered rules for choosing Option A/B/C). Flaky test handling (re-run once, annotate flaky, never claim unconditional confidence).
+- **Plan Gap Reviewer:** Verification depth guide (6-point checklist before PASS). Concrete mismatch examples for all 6 finding buckets.
+- **Research Skill:** Source conflict resolution with confidence-based override rules.
+- **Planning Patterns:** 4-dimensional risk classification (Technical/Timeline/Quality/Security). Plan Completeness Gate (6-criterion table). Anti-perfectionism rationalization row.
+- **TDD:** Behavioral Focus section (test collaboration not state) with wrong/right table. Test Contracts Across Agents (test file IS the planner-builder-reviewer contract).
+- **Code Review Patterns:** Wrong/Right silent optional chaining example. Partial Phase Reviews table (4 scope rules for multi-phase builds).
+- **Code Generation:** When to Abstract decision table (Rule of Three). Abstraction cost signals.
+- **Architecture Patterns:** Implementation ordering DAG (Level 0→3 with ASCII visual).
+- **Brainstorming:** Inline WHY rationale for design section ordering.
+- **Router:** Scope assessment heuristic signals (1-2 files = trivial, 3+ files = non-trivial). Agent completion pre-check (scope, tests, follow-up). Split-brain contradiction handling (stricter verdict wins). "EASY TO MISS" annotations on memory_task_id pitfalls. Verification rigor inline rationale. Two new hard rules: evidence-before-reporting and anti-drift remediation checkpoint.
+
+#### Unchanged
+- Zero YAML contract fields modified. Zero state machine transitions. Zero workflow graphs. Zero hook definitions. All existing hard rules preserved. No numbered step reordering. No frontmatter changes.
+
 ## [10.1.12] - 2026-03-27
 
 ### Prompt engineering uplift from mattpocock/skills

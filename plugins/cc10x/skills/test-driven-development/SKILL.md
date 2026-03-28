@@ -225,6 +225,19 @@ Next failing test for next feature.
 | **Clear** | Name describes behavior | `test('test1')` |
 | **Shows intent** | Demonstrates desired API | Obscures what code should do |
 
+### Near-Miss Negative Tests
+
+Test that the system correctly rejects inputs that are almost-but-not-quite valid. Near-misses catch off-by-one boundaries, wrong-type coercions, and missing validations that happy-path + obvious-edge tests miss.
+
+| Test type | Example |
+|-----------|---------|
+| Boundary -1 | `expect(validate(minAge - 1)).toBe(false)` |
+| Wrong type | `expect(parseId("123abc")).toThrow()` |
+| Missing field | `expect(createUser({name: "Jo"})).toReject()` (email required) |
+| Expired state | `expect(useToken(expiredToken)).toBe(401)` |
+
+If your test suite has zero rejection tests, it is incomplete.
+
 ## Factory Pattern for Tests (Reference Pattern)
 
 Create `getMockX(overrides?: Partial<X>)` functions for reusable test data:
@@ -476,6 +489,15 @@ Do NOT skip tests because code "looks simple" — simple code breaks too. The 80
 
 **If you spot these in your tests:** Fix before claiming TDD cycle complete.
 
+### Pre-Run Anti-Pattern Check
+
+Before running the test suite, verify:
+- No test depends on another test's execution order or state
+- No test uses `setTimeout`/`sleep` for timing (use condition-based waits)
+- No test asserts on implementation internals (`.state`, `.length`, private fields)
+- No test mocks a module it is supposed to be testing
+If any fail: fix the test before running the suite. A flawed test run wastes the entire RED-GREEN cycle.
+
 ## When Stuck
 
 | Problem | Solution |
@@ -498,6 +520,28 @@ If tests are hard to write, the interface needs work:
    - Hard to test: `function applyDiscount(cart): void { cart.total -= discount; }`
 
 3. **Small surface area** — fewer methods = fewer tests needed, fewer params = simpler setup
+
+### Behavioral Focus
+
+Test how objects collaborate, not what they contain. If a test inspects `.state`, `.length`, or private fields, it is testing structure — and will break when internals change without behavior changing.
+
+| Test target | Correct | Wrong |
+|-------------|---------|-------|
+| Function output | `expect(calculate(input)).toBe(result)` | `expect(calculator.internalCache).toContain(...)` |
+| Component behavior | `expect(screen.getByText('Saved')).toBeTruthy()` | `expect(component.state.saved).toBe(true)` |
+| Service interaction | `expect(response.status).toBe(201)` | `expect(service.callCount).toBe(1)` |
+
+This is already implied by the "Testing implementation" smell in the Test Smells table. Make it the default lens: every assertion should answer "what did the user/caller observe?" not "what happened inside?"
+
+### Test Contracts Across Agents
+
+When CC10x routes work across multiple agents (planner writes test specs, builder implements, reviewer verifies), the test file IS the contract:
+
+- **Planner** defines expected behavior as test names and assertions in the plan
+- **Builder** writes tests first, implements to green — the test file proves the contract is met
+- **Reviewer** re-runs the same tests — pass means contract fulfilled, fail means contract broken
+
+Do not duplicate the contract in prose. If the test file expresses the requirement, the test file is the requirement.
 
 ## Output Format
 

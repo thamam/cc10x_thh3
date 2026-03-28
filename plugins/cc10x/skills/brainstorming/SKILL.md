@@ -165,7 +165,11 @@ AskUserQuestion({
 })
 ```
 
-**After the unresolved dimensions are answered:** Proceed to Phase 3 with collected answers. Do not force the full 5-question sequence when the intent contract is already complete.
+**Optional Q6 (ask only when the user seems to have unexpressed aspirations):** "If there were no constraints, what would the ideal version look like?" This unlocks hidden requirements and aspirational features — capture them, then apply YAGNI to defer what is not essential.
+
+**Q7 — Out-of-scope discovery (always ask):** "What is explicitly NOT part of this? What should we defer?" Document answers in the Out of Scope section of the design document. This prevents scope creep from assumptions about what "should" be included.
+
+**After the unresolved dimensions are answered:** Proceed to Phase 3 with collected answers. Do not force the full 7-question sequence when the intent contract is already complete.
 
 ### Phase 3: Explore Approaches
 
@@ -197,19 +201,19 @@ Which direction feels right?
 
 **Once approach chosen, present design in sections (200-300 words each):**
 
-1. **Architecture Overview** - High-level structure
+1. **Architecture Overview** - High-level structure (establishes shared mental model before details)
    > "Does this architecture make sense so far?"
 
-2. **Components** - Key pieces
+2. **Components** - Key pieces (names the parts referenced in all later discussion)
    > "Do these components cover what you need?"
 
-3. **Data Flow** - How data moves
+3. **Data Flow** - How data moves (validates components actually connect — catches orphaned pieces)
    > "Does this data flow work for your use case?"
 
-4. **Error Handling** - What can go wrong
+4. **Error Handling** - What can go wrong (only meaningful after happy path is agreed)
    > "Are these error cases covered?"
 
-5. **Testing Strategy** - How to verify
+5. **Testing Strategy** - How to verify (depends on all prior sections being stable)
    > "Does this testing approach give you confidence?"
 
 **After each section, ask if it looks right before continuing.**
@@ -272,6 +276,9 @@ If you find yourself:
 - Asking multiple questions at once
 - Assuming you know what the user wants
 - Not validating incrementally
+- Asking leading questions that steer toward a pre-decided solution ("Should we use React?" instead of "What UI approach fits?")
+- Asking compound questions (more than one decision per question)
+- Accepting vague answers without probing ("It should be fast" → "What response time is acceptable?")
 
 **STOP. Go back to Phase 2.**
 
