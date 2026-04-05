@@ -9,7 +9,7 @@ This inventory defines which prompt surfaces are allowed to affect trust-critica
 ### planner
 - Path: `plugins/cc10x/agents/planner.md`
 - Role: agreement-first planning artifact creation
-- Allowed edits: wording clarity, contract wording, output sections, codebase-reality checks, examples, context-loading guidance
+- Allowed edits: wording clarity, contract wording, output sections, codebase-reality checks, live-verification planning wording, examples, context-loading guidance
 - Forbidden edits: anything that changes routing, approval semantics, plan-mode meaning, or build-start conditions
 - Comparison references: `metaswarm` plan review, `get-shit-done` planning/execution contract, `cc10x-v7` planner usability
 - Review requirement: audit + replay + manual semantic review
@@ -41,7 +41,7 @@ This inventory defines which prompt surfaces are allowed to affect trust-critica
 ### verification-before-completion
 - Path: `plugins/cc10x/skills/verification-before-completion/SKILL.md`
 - Role: fresh-evidence honesty layer before completion claims
-- Allowed edits: compactness, anti-rationalization wording, example cleanup
+- Allowed edits: compactness, anti-rationalization wording, live-proof wording, example cleanup
 - Forbidden edits: relaxing fresh-evidence requirement or reducing scope to only tests/build
 - Comparison references: `superpowers` verification-before-completion, `get-shit-done` goal-backward verification
 - Review requirement: audit + replay + manual semantic review
@@ -85,7 +85,7 @@ This inventory defines which prompt surfaces are allowed to affect trust-critica
 ### frontend-patterns
 - Path: `plugins/cc10x/skills/frontend-patterns/SKILL.md`
 - Role: advisory frontend guardrails
-- Allowed edits: trigger accuracy, brevity, advisory clarifications
+- Allowed edits: trigger accuracy, brevity, advisory clarifications, reference navigation, checklist extraction
 - Forbidden edits: authority drift that competes with user/project standards
 - Comparison references: `superpowers` writing-skills description hygiene
 - Review requirement: audit only unless authority wording changes
@@ -93,9 +93,25 @@ This inventory defines which prompt surfaces are allowed to affect trust-critica
 ### debugging-patterns
 - Path: `plugins/cc10x/skills/debugging-patterns/SKILL.md`
 - Role: advisory root-cause debugging reference
-- Allowed edits: trigger accuracy, brevity, root-cause emphasis
+- Allowed edits: trigger accuracy, brevity, root-cause emphasis, reference navigation, playbook extraction
 - Forbidden edits: language that authorizes shallow/local-only fixes
 - Comparison references: `superpowers` writing-skills description hygiene
+- Review requirement: audit only unless authority wording changes
+
+### code-review-patterns
+- Path: `plugins/cc10x/skills/code-review-patterns/SKILL.md`
+- Role: advisory review-order, security, and quality heuristics
+- Allowed edits: compactness, rubric clarity, reference navigation, checklist extraction
+- Forbidden edits: authority drift that bypasses router-owned review agents
+- Comparison references: `get-shit-done` review references, `superpowers` review skills
+- Review requirement: audit only unless authority wording changes
+
+### test-driven-development
+- Path: `plugins/cc10x/skills/test-driven-development/SKILL.md`
+- Role: advisory TDD discipline and verification-depth escalation
+- Allowed edits: compactness, examples, reference navigation, live-proof escalation wording
+- Forbidden edits: relaxing fail-first discipline or weakening delete-and-restart guidance
+- Comparison references: `superpowers` test-driven-development, `agent-skills` testing references
 - Review requirement: audit only unless authority wording changes
 
 ### architecture-patterns
