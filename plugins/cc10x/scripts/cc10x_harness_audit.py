@@ -7,11 +7,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 ROUTER = PLUGIN_ROOT / "skills" / "cc10x-router" / "SKILL.md"
+ROUTER_REFERENCES_DIR = PLUGIN_ROOT / "skills" / "cc10x-router" / "references"
+ROUTER_ARTIFACT_POLICY_REFERENCE = (
+    ROUTER_REFERENCES_DIR / "workflow-artifact-and-hook-policy.md"
+)
+ROUTER_BUILD_REFERENCE = ROUTER_REFERENCES_DIR / "build-workflow.md"
+ROUTER_DEBUG_REFERENCE = ROUTER_REFERENCES_DIR / "debug-workflow.md"
+ROUTER_REVIEW_REFERENCE = ROUTER_REFERENCES_DIR / "review-workflow.md"
+ROUTER_PLAN_REFERENCE = ROUTER_REFERENCES_DIR / "plan-workflow.md"
+ROUTER_REMEDIATION_REFERENCE = ROUTER_REFERENCES_DIR / "remediation-and-research.md"
 README = ROOT / "README.md"
 CHANGELOG = ROOT / "CHANGELOG.md"
 PLUGIN_JSON = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = ROOT / ".claude-plugin" / "marketplace.json"
 HOOKS_JSON = PLUGIN_ROOT / "hooks" / "hooks.json"
+TASK_COMPLETED_GUARD = PLUGIN_ROOT / "scripts" / "cc10x_task_completed_guard.py"
 INVARIANTS = ROOT / "docs" / "router-invariants.md"
 PROMPT_INVARIANTS = ROOT / "docs" / "prompt-invariants.md"
 PROMPT_SURFACE_INVENTORY = ROOT / "docs" / "prompt-surface-inventory.md"
@@ -29,7 +39,11 @@ SESSION_MEMORY_SKILL = PLUGIN_ROOT / "skills" / "session-memory" / "SKILL.md"
 FIXTURES_DIR = PLUGIN_ROOT / "tests" / "fixtures"
 LIVE_MANIFEST_TEMPLATE = PLUGIN_ROOT / "templates" / "live-harness.template.json"
 PLANNING_LIVE_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "planning-patterns" / "references" / "live-verification-strategy.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "planning-patterns"
+    / "references"
+    / "live-verification-strategy.md"
 )
 VERIFY_LIVE_REFERENCE = (
     PLUGIN_ROOT
@@ -42,46 +56,98 @@ LIVE_MANIFEST_BOOTSTRAP = (
     PLUGIN_ROOT / "tests" / "live" / "manifests" / "cc10x-bootstrap.json"
 )
 DEBUGGING_PLAYBOOKS_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "debugging-patterns" / "references" / "root-cause-playbooks.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "debugging-patterns"
+    / "references"
+    / "root-cause-playbooks.md"
 )
 DEBUGGING_HYGIENE_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "debugging-patterns" / "references" / "investigation-hygiene.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "debugging-patterns"
+    / "references"
+    / "investigation-hygiene.md"
 )
 REVIEW_ORDER_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "code-review-patterns" / "references" / "review-order-and-checkpoints.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "code-review-patterns"
+    / "references"
+    / "review-order-and-checkpoints.md"
 )
 REVIEW_SECURITY_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "code-review-patterns" / "references" / "security-review-checklist.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "code-review-patterns"
+    / "references"
+    / "security-review-checklist.md"
 )
 REVIEW_HEURISTICS_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "code-review-patterns" / "references" / "code-review-heuristics.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "code-review-patterns"
+    / "references"
+    / "code-review-heuristics.md"
 )
 FRONTEND_STATE_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "frontend-patterns" / "references" / "ui-state-and-feedback.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "frontend-patterns"
+    / "references"
+    / "ui-state-and-feedback.md"
 )
 FRONTEND_A11Y_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "frontend-patterns" / "references" / "accessibility-and-forms.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "frontend-patterns"
+    / "references"
+    / "accessibility-and-forms.md"
 )
 FRONTEND_LAYOUT_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "frontend-patterns" / "references" / "performance-and-layout.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "frontend-patterns"
+    / "references"
+    / "performance-and-layout.md"
 )
 TDD_PATTERNS_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "test-driven-development" / "references" / "testing-patterns.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "test-driven-development"
+    / "references"
+    / "testing-patterns.md"
 )
 TDD_MOCKS_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "test-driven-development" / "references" / "test-data-and-mocks.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "test-driven-development"
+    / "references"
+    / "test-data-and-mocks.md"
 )
 TDD_LIVE_PROOF_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "test-driven-development" / "references" / "integration-and-live-proof.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "test-driven-development"
+    / "references"
+    / "integration-and-live-proof.md"
 )
 SESSION_MEMORY_MODEL_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "session-memory" / "references" / "memory-model-and-ownership.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "session-memory"
+    / "references"
+    / "memory-model-and-ownership.md"
 )
 SESSION_MEMORY_OPERATIONS_REFERENCE = (
     PLUGIN_ROOT / "skills" / "session-memory" / "references" / "memory-operations.md"
 )
 SESSION_MEMORY_FILE_CONTRACTS_REFERENCE = (
-    PLUGIN_ROOT / "skills" / "session-memory" / "references" / "memory-file-contracts.md"
+    PLUGIN_ROOT
+    / "skills"
+    / "session-memory"
+    / "references"
+    / "memory-file-contracts.md"
 )
 SESSION_MEMORY_CONTEXT_BUDGET_REFERENCE = (
     PLUGIN_ROOT
@@ -144,6 +210,24 @@ def main() -> int:
         json.loads(read(MARKETPLACE_JSON)) if MARKETPLACE_JSON.exists() else {}
     )
     router = read(ROUTER)
+    router_artifact_policy_reference = read(ROUTER_ARTIFACT_POLICY_REFERENCE)
+    router_build_reference = read(ROUTER_BUILD_REFERENCE)
+    router_debug_reference = read(ROUTER_DEBUG_REFERENCE)
+    router_review_reference = read(ROUTER_REVIEW_REFERENCE)
+    router_plan_reference = read(ROUTER_PLAN_REFERENCE)
+    router_remediation_reference = read(ROUTER_REMEDIATION_REFERENCE)
+    router_surface = "\n\n".join(
+        [
+            router,
+            router_artifact_policy_reference,
+            router_build_reference,
+            router_debug_reference,
+            router_review_reference,
+            router_plan_reference,
+            router_remediation_reference,
+        ]
+    )
+    task_completed_guard = read(TASK_COMPLETED_GUARD)
     readme = read(README)
     changelog = read(CHANGELOG)
     invariants = read(INVARIANTS)
@@ -279,7 +363,23 @@ def main() -> int:
                 f"README no longer documents optional MCP server '{required}'"
             )
 
-    required_router_headings = [
+    required_router_inline = [
+        "## 2a. Workflow Artifact And Hook Policy",
+        "references/workflow-artifact-and-hook-policy.md",
+        "references/build-workflow.md",
+        "references/debug-workflow.md",
+        "references/review-workflow.md",
+        "references/plan-workflow.md",
+        "references/remediation-and-research.md",
+        "## 12. Chain Execution Loop",
+        "## 13. Memory Finalization",
+        "## 14. Hard Rules",
+    ]
+    for heading in required_router_inline:
+        if heading not in router:
+            errors.append(f"router missing required inline reference/text: {heading}")
+
+    required_router_surface_text = [
         "## 1. Intent Routing",
         "## 2a. Workflow Artifact And Hook Policy",
         "## 3. Task Metadata Contract",
@@ -307,9 +407,47 @@ def main() -> int:
         "skill_precedence_gate",
         "Convergence rule:",
     ]
-    for heading in required_router_headings:
-        if heading not in router:
-            errors.append(f"router missing required heading/text: {heading}")
+    for heading in required_router_surface_text:
+        if heading not in router_surface:
+            errors.append(f"router surface missing required heading/text: {heading}")
+
+    reference_expectations = {
+        ROUTER_ARTIFACT_POLICY_REFERENCE: (
+            "## 2a. Workflow Artifact And Hook Policy",
+            "Artifact schema must include:",
+            "Hook policy:",
+        ),
+        ROUTER_BUILD_REFERENCE: (
+            "### BUILD preparation",
+            "### BUILD task graph",
+            "plan_trust_gate",
+        ),
+        ROUTER_DEBUG_REFERENCE: (
+            "### DEBUG preparation",
+            "### DEBUG task graph",
+            "[DEBUG-RESET:",
+        ),
+        ROUTER_REVIEW_REFERENCE: (
+            "### REVIEW preparation",
+            "### REVIEW task graph",
+            "CHANGES_REQUESTED",
+        ),
+        ROUTER_PLAN_REFERENCE: (
+            "### PLAN preparation",
+            "### PLAN task graph",
+            "decision_rfc",
+        ),
+        ROUTER_REMEDIATION_REFERENCE: (
+            "## 9. Remediation And Workflow Rules",
+            "## 10. Research Orchestration",
+            "## 11. Re-Review Loop",
+        ),
+    }
+    for path, expected_phrases in reference_expectations.items():
+        text = read(path)
+        for phrase in expected_phrases:
+            if phrase not in text:
+                errors.append(f"{path.name} missing required reference text: {phrase}")
 
     required_task_metadata = (
         "wf:",
@@ -321,8 +459,10 @@ def main() -> int:
         "reason:",
     )
     for field in required_task_metadata:
-        if field not in router:
-            errors.append(f"router missing task metadata contract field {field}")
+        if field not in router_surface:
+            errors.append(
+                f"router surface missing task metadata contract field {field}"
+            )
 
     if "Task Metadata Contract" not in invariants and "Status note:" not in invariants:
         errors.append(
@@ -346,6 +486,18 @@ def main() -> int:
         errors.append("verifier-latency-model.md appears malformed")
     if "Latency Reduction Note" not in latency_reduction_note:
         errors.append("latency-reduction-note.md appears malformed")
+    if "MEMORY_FINAL_EVENT" not in task_completed_guard:
+        errors.append("task_completed_guard missing memory finalize event guard")
+    for phrase in (
+        'metadata.get("kind") != "memory"',
+        "workflow_event_log_contains(workflow_id, MEMORY_FINAL_EVENT)",
+        "missing-memory-finalized-event",
+        "CC10X Memory Update:",
+    ):
+        if phrase not in task_completed_guard:
+            errors.append(
+                f"task_completed_guard missing memory finalize phrase '{phrase}'"
+            )
 
     for required in (
         "memory-model-and-ownership.md",
@@ -355,7 +507,9 @@ def main() -> int:
         "MEMORY_NOTES",
     ):
         if required not in session_memory:
-            errors.append(f"session-memory skill missing required reference/text: {required}")
+            errors.append(
+                f"session-memory skill missing required reference/text: {required}"
+            )
 
     if "### session-memory" not in prompt_surface_inventory:
         errors.append("prompt surface inventory missing session-memory entry")
@@ -457,7 +611,7 @@ def main() -> int:
                     f"{agent_name}.md missing expected contract field '{field}'"
                 )
 
-    prompt_phrase_guards = {
+    prompt_phrase_guards: dict[str, list[str]] = {
         "planner": [
             "The first draft must be decisive, but not by inventing facts",
             "Do not finalize a non-trivial plan before comparing it against the current codebase",
@@ -498,14 +652,14 @@ def main() -> int:
             "You do not own orchestration, plan approval, or plan edits.",
         ],
     }
-    for stem, phrases in prompt_phrase_guards.items():
+    for stem, guard_phrases in prompt_phrase_guards.items():
         path = (
             PLUGIN_ROOT / "agents" / f"{stem}.md"
             if (PLUGIN_ROOT / "agents" / f"{stem}.md").exists()
             else PLUGIN_ROOT / "skills" / stem / "SKILL.md"
         )
         text = read(path)
-        for phrase in phrases:
+        for phrase in guard_phrases:
             if phrase not in text:
                 errors.append(f"{path.name} missing prompt safety phrase '{phrase}'")
 

@@ -1,6 +1,6 @@
 # CC10X Orchestration Bible (Plugin-Only Source of Truth)
 
-> **Last reviewed against live plugin files:** 2026-04-05 (`v10.1.17` product line: planner-owned fresh review loop, prompt safety system, latency-safe verifier telemetry, router-owned orchestration, versioned v10 state, workflow replay fixtures, reference-first skill packaging, live harness bootstrap) | **Status:** IN SYNC WITH CURRENT MAIN
+> **Last reviewed against live plugin files:** 2026-04-09 (`v10.1.18` product line: planner-owned fresh review loop, prompt safety system, latency-safe verifier telemetry, router-kernel orchestration, mandatory workflow playbooks, versioned v10 state, workflow replay fixtures, reference-first skill packaging, live harness bootstrap) | **Status:** IN SYNC WITH CURRENT MAIN
 
 > This document is derived **only** from `plugins/cc10x/` (agents + skills).
 > Ignore all other docs. Do not trust external narratives.
@@ -49,6 +49,9 @@ allowed-tools: Read, Grep # Tools that skip permission prompts when skill is act
 - Large preloaded skills increase startup context and contradiction risk.
 - Reference-first packaging keeps `SKILL.md` as the control plane and moves detailed templates,
   checklists, and operations into one-level-deep `references/`.
+- For the router specifically, references are not optional convenience material. The
+  kernel names mandatory reads for workflow and appendix law, and those
+  references are part of the orchestration contract.
 - Skills cannot call tools themselves. They instruct the hosting agent to call tools.
 
 ### What is an Agent?
@@ -59,7 +62,9 @@ An **agent** is a Markdown file with YAML frontmatter that defines an isolated s
 ```yaml
 name: agent-name          # Identifier
 tools: Read, Edit, Bash   # Actual tool allowlist (enforced at runtime)
-skills: skill-a, skill-b  # Skills to preload (full content injected at startup)
+skills:
+  - skill-a               # Skills to preload (full content injected at startup)
+  - skill-b
 model: inherit            # Model to use
 ```
 
@@ -69,7 +74,7 @@ model: inherit            # Model to use
 - Agent outputs are returned to the caller (router) as a single result.
 - Plain subagents do not provide team-style orchestration for free. CC10X implements that layer itself using tasks, workflow metadata, and router rules.
 
-Agents spawned via Task() run in isolated context windows by default — they cannot see the parent conversation, CLAUDE.md, or other agents' outputs. No frontmatter configuration is required for isolation.
+Agents spawned via Agent() run in isolated context windows by default — they cannot see the parent conversation, CLAUDE.md, or other agents' outputs. No frontmatter configuration is required for isolation.
 
 ### Skills vs Agents — The Distinction
 
@@ -79,7 +84,7 @@ Agents spawned via Task() run in isolated context windows by default — they ca
 | **Runs as** | Context injected into an agent | Isolated process with own context window |
 | **Can use tools?** | No — instructs the hosting agent to use tools | Yes — has its own `tools:` allowlist |
 | **Can see parent context?** | Only if loaded into parent; forked agents cannot see parent | No (isolated by default) |
-| **Loaded via** | Agent frontmatter `skills:` (automatic) or `Skill()` call (on-demand) | `Task(subagent_type="...")` |
+| **Loaded via** | Agent frontmatter `skills:` (automatic) or `Skill()` call (on-demand) | `Agent(agent_type="...")` |
 | **Frontmatter tool field** | `allowed-tools` (permission hint, NOT enforcement) | `tools` (actual allowlist, enforced) |
 
 ### How CC10x Uses This Architecture
@@ -116,8 +121,8 @@ Research runs as parallel agents spawned directly by the router (same pattern as
 
 ```
 Router detects research need
-  → Task(cc10x:web-researcher) [parallel]   → docs/research/{date}-{topic}-web.md
-  → Task(cc10x:github-researcher) [parallel] → docs/research/{date}-{topic}-github.md
+  → Agent(cc10x:web-researcher) [parallel]   → docs/research/{date}-{topic}-web.md
+  → Agent(cc10x:github-researcher) [parallel] → docs/research/{date}-{topic}-github.md
   Both complete → router collects both FILE_PATHs
   → Router passes both paths to planner or bug-investigator
 ```
@@ -170,6 +175,18 @@ The current main branch includes two non-runtime but load-bearing safety tools:
   - covers PLAN / BUILD / DEBUG / REVIEW / VERIFY regression paths without a live Claude session
 
 These are part of the maintenance contract even though they are not invoked by the router at runtime.
+
+### Router Packaging Rule
+
+The router now uses a **kernel + mandatory workflow playbooks** shape:
+- keep universal orchestration law inline in `cc10x-router/SKILL.md`
+- keep workflow-specific and appendix-heavy law in
+  `plugins/cc10x/skills/cc10x-router/references/*.md`
+- every BUILD / DEBUG / REVIEW / PLAN branch must explicitly instruct Claude to
+  read the correct reference before continuing
+
+This is not “optional progressive disclosure.” For the router, those references
+are part of the source of truth.
 
 ### External Skill Conflict Risk (Design Decision)
 
@@ -269,7 +286,7 @@ flowchart TD
 4. Agent self-reports: calls `TaskUpdate({ taskId, status: "completed" })` in its final output. Router validates via `TaskList()` and calls `TaskUpdate` as fallback if status is still `in_progress`.
 5. Repeat until **ALL** agent tasks are completed.
 
-**Note (v6.0.29+):** Agents DO call TaskUpdate for their own task (self-completion). Router applies a fallback if the agent missed it. Both are defense-in-depth — not a contradiction. `Task()` return is the deterministic handoff point for the router to validate.
+**Note (v6.0.29+):** Agents DO call TaskUpdate for their own task (self-completion). Router applies a fallback if the agent missed it. Both are defense-in-depth — not a contradiction. The `Agent()` return is the deterministic handoff point for the router to validate.
 
 ### Tasks Tool Contract (Keep Examples Exact)
 
